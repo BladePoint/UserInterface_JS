@@ -1,4 +1,8 @@
-import { UIElement } from './UIElement.js';
+import { UIElement, UIButton } from './UIElement.js';
+import { Rectangle } from './Primitives.js';
+import { Circle } from './Primitives.js';
+import { SemicircleBar } from './Primitives.js';
+import { clamp } from '../Utilities_JS/mathUtils.js';
 
 const GLASS_LIGHT_HEX = '#eaebdc';
 export class ShadedRect extends UIElement {
@@ -9,30 +13,27 @@ export class ShadedRect extends UIElement {
             lightHex = '#ffffff', darkHex = '#666666',
             topGradientHex = '#eeeeee', bottomGradientHex = '#999999'
         } = options;
-        const dark = document.createElement('div');
-        this.applyStyles(dark, {
-            width: `${width}px`,
-            height: `${height}px`,
-            borderRadius: '6px',
-            backgroundColor: darkHex
+        const dark = new Rectangle({
+            width,
+            height,
+            borderRadius: 6,
+            background: darkHex
         });
-        const light = document.createElement('div');
-        this.applyStyles(light, {
-            width: `${width - 2}px`,
-            height: `${height - 2}px`,
-            borderRadius: '5px',
+        const light = new Rectangle({
+            width: width - 2,
+            height: height - 2,
+            borderRadius: 5,
             background: `linear-gradient(${lightHex}, ${darkHex})`,
-            position: 'absolute',
-            top: '1px', left: '1px'
+            top: 1,
+            left: 1
         });
-        const gradient = document.createElement('div');
-        this.applyStyles(gradient, {
-            width: `${width - 2}px`,
-            height: `${height - 3}px`,
-            borderRadius: '5px',
+        const gradient = new Rectangle({
+            width: width - 2,
+            height: height - 3,
+            borderRadius: 5,
             background: `linear-gradient(${topGradientHex}, ${bottomGradientHex})`,
-            position: 'absolute',
-            top: '2px', left: '1px'
+            top: 2,
+            left: 1
         });
         this.appendChild(dark);
         this.appendChild(light);
@@ -46,110 +47,135 @@ export class RectButton extends UIElement {
         const {
             width, height,
             rimHex = '#ffffff',
-            bottomGradientHex = '#b0b0b0'
+            bottomGradientHex = '#b0b0b0',
+            left = 0, top = 0
         } = options;
-        const rim = document.createElement('div');
-        this.applyStyles(rim, {
-            width: `${width}px`,
-            height: `${height}px`,
-            borderRadius: '6px',
-            backgroundColor: rimHex,
-            position: 'absolute',
-            top: '1px',
-            pointerEvents: 'none'
+        const rim = new Rectangle({
+            width,
+            height,
+            borderRadius: 6,
+            background: rimHex,
+            top: 1
         });
         const shadedRect = new ShadedRect({
             width,
             height,
             bottomGradientHex
         });
-        this.applyStyles(shadedRect, {
-            position: 'absolute',
-            top: '0px'
-        });
         this.appendChild(rim);
         this.appendChild(shadedRect);
+        UIElement.assignStyles(this, {
+            left: UIElement.parsePxArgument(left),
+            top: UIElement.parsePxArgument(top)
+        });
     }
 }
 
-export class ShadedCircle extends UIElement {
-    constructor(options) {
+class iButton extends UIButton {
+    constructor(pointerElement, upFunction=null) {
         super();
+        this.pointerElement = pointerElement;
+        this.addMouseListeners(pointerElement);
+        this.upFunction = upFunction;
+    }
+    enable() {this.pointerElement.enable();}
+    disable() {this.pointerElement.disable();}
+    onDown = (evt) => {
+        super.onDown(evt);
+        this.downState();
+    }
+    onLeave = (evt) => {
+        super.onLeave(evt);
+        this.upState();
+    }
+    onUp = (evt) => {
+        if (this.isMouseDown) {
+            console.log('up');
+            if (this.upFunction) this.upFunction();
+        }
+        super.onUp(evt);
+        this.upState();
+    }
+    upState() {}
+    downState() {}
+}
+export class ShadedCircle extends iButton {
+    constructor(options) {
         const {
+            upFunction,
             diameter,
             darkHex = '#333333', lightHex = '#ffffff',
             bottomGradientHex = '#999999'
         } = options;
-        const dark = document.createElement('div');
-        this.applyStyles(dark, {
-            width: `${diameter}px`,
-            height: `${diameter}px`,
-            borderRadius: '50%',
-            backgroundColor: darkHex,
-            position: 'absolute'
+        const dark = new Circle({
+            diameter,
+            background: darkHex
         });
-        const light = document.createElement('div');
-        this.applyStyles(light, {
-            width: `${diameter - 2}px`,
-            height: `${diameter - 2}px`,
-            borderRadius: '50%',
-            backgroundColor: lightHex,
-            position: 'absolute',
-            top: '1px',
-            left: '1px'
+        super(dark, upFunction);
+        this.upGradient = `linear-gradient(${lightHex}, ${bottomGradientHex})`;
+        this.downGradient = `linear-gradient(${bottomGradientHex}, ${lightHex})`;
+        this.upOptions = {
+            width: diameter - 2,
+            height: diameter - 3,
+            background: this.upGradient,
+            top: 2,
+            left: 1
+        };
+        this.downOptions = {
+            width: diameter - 2,
+            height: diameter - 2,
+            background: this.downGradient,
+            top: 1,
+            left: 1
+        };
+        this.light = new Circle({
+            diameter: diameter - 2,
+            background: lightHex,
+            top: 1,
+            left: 1
         });
-        const gradient = document.createElement('div');
-        this.applyStyles(gradient, {
-            width: `${diameter - 2}px`,
-            height: `${diameter - 3}px`,
-            borderRadius: '50%',
-            background: `linear-gradient(${lightHex}, ${bottomGradientHex})`,
-            position: 'absolute',
-            top: '2px',
-            left: '1px'
-        });
+        this.gradient = new Circle(this.upOptions);
         this.appendChild(dark);
-        this.appendChild(light);
-        this.appendChild(gradient);
+        this.appendChild(this.light);
+        this.appendChild(this.gradient);
+    }
+    upState() {
+        this.light.style.display = 'inline-block';
+        this.gradient.parseOptions(this.upOptions);
+    }
+    downState() {
+        this.light.style.display = 'none';
+        this.gradient.parseOptions(this.downOptions);
     }
 }
 
-export class CircleButton extends UIElement {
+export class CircleButton extends ShadedCircle {
     constructor(options) {
-        super();
         const {
             diameter,
-            rimHex = '#cccccc'
+            rimHex = '#cccccc',
+            left = 0, top = 0
         } = options;
-        const rim = document.createElement('div');
-        this.applyStyles(rim, {
-            width: `${diameter}px`,
-            height: `${diameter}px`,
-            backgroundColor: rimHex,
-            borderRadius: '50%',
-            position: 'absolute',
-            top: '1px',
-            pointerEvents: 'none'
+        super({ diameter });
+        const rim = new Circle({
+            diameter,
+            background: rimHex,
+            top: 1
         });
-        const shadedCircle = new ShadedCircle({ diameter });
-        this.applyStyles(shadedCircle, {
-            position: 'absolute',
-            top: '0px'
+        this.prependChild(rim);
+        UIElement.assignStyles(this, {
+            left: UIElement.parsePxArgument(left),
+            top: UIElement.parsePxArgument(top)
         });
-        this.appendChild(rim);
-        this.appendChild(shadedCircle);
     }
 }
 
 export class GlassPanel extends UIElement {
     constructor(options) {
         super();
-        const {
-            width, height,
-            color
-        } = options;
+        const {width, height, colorHex, left=0, top=0} = options;
         let lightHex, darkHex;
-        switch (color) {
+        switch (colorHex) {
             case 'purple':
                 lightHex = '#8585ae';
                 darkHex = '#7779a0';
@@ -159,148 +185,142 @@ export class GlassPanel extends UIElement {
                 darkHex = '#cfd2c1';
                 break;
         }
-        const rim = document.createElement('div');
-        this.applyStyles(rim, {
-            width: `${width}px`,
-            height: `${height}px`,
-            borderRadius: '4px',
-            backgroundColor: '#ffffff',
-            position: 'absolute',
-            top: '1px',
-            pointerEvents: 'none'
+        const rim = new Rectangle({
+            width,
+            height,
+            borderRadius: 4,
+            background: '#ffffff',
+            top: 1
         });
-        const dark = document.createElement('div');
-        this.applyStyles(dark, {
-            width: `${width}px`,
-            height: `${height}px`,
-            borderRadius: '4px',
-            backgroundColor: '#666666',
-            position: 'absolute',
-            top: '0px',
+        const dark = new Rectangle({
+            width,
+            height,
+            borderRadius: 4,
+            background: '#666666'
         });
-        const shadow = document.createElement('div');
-        this.applyStyles(shadow, {
-            width: `${width - 2}px`,
-            height: `${height - 2}px`,
-            borderRadius: '3px',
+        const shadow = new Rectangle({
+            width: width - 2,
+            height: height - 2,
+            borderRadius: 3,
             background: darkHex,
-            position: 'absolute',
-            top: '1px',
-            left: '1px'
+            top: 1,
+            left: 1
         });
-        const light = document.createElement('div');
-        this.applyStyles(light, {
-            width: `${width - 4}px`,
-            height: `${height - 3}px`,
-            borderRadius: '2px',
+        const light = new Rectangle({
+            width: width - 4,
+            height: height - 3,
+            borderRadius: 2,
             background: lightHex,
-            position: 'absolute',
-            top: '2px',
-            left: '2px'
+            top: 2,
+            left: 2
         });
-        const gradient = document.createElement('div');
         const gradientHeight = height * 0.45;
-        this.applyStyles(gradient, {
-            width: `${width - 4}px`,
-            height: `${gradientHeight}px`,
+        const gradient = new Rectangle({
+            width: width - 4,
+            height: gradientHeight,
             borderRadius: '0px 0px 4px 4px',
             background: `linear-gradient(${darkHex}, ${lightHex})`,
-            position: 'absolute',
-            top: `${height - gradientHeight - 1}px`,
-            left: '2px'
+            top: height - gradientHeight - 1,
+            left: 2
         });
         this.appendChild(rim);
         this.appendChild(dark);
         this.appendChild(shadow);
         this.appendChild(light);
         this.appendChild(gradient);
+        UIElement.assignStyles(this, {
+            left: `${left}px`,
+            top: `${top}px`
+        });
     }
 }
 
-export class CapsuleBar extends UIElement {
+export class ProgressBar extends SemicircleBar {
     constructor(options) {
-        super();
-        const {
-            height,
-            width,
-            color,
-            leftCapInvisible,
-            rightCapInvisible
-        } = options;
-        const capDiameter = height;
-        const capRadius = height / 2;
-        const trackWidth = width - capDiameter;
-        const leftCap = document.createElement('div');
-        const rightCap = document.createElement('div');
-        const track = document.createElement('div');
-        this.applyStyles(leftCap, {
-            width: `${capDiameter}px`,
-            height: `${capDiameter}px`,
-            borderRadius: '50%',
-            backgroundColor: color,
-            position: 'absolute',
-            top: '0px',
-            left: '0px'
+        const {width, height, containerHex, progressHex} = options;
+        const superOptions = {
+            width: width,
+            height: height,
+            background: containerHex
+        };
+        super(superOptions);
+        UIElement.assignStyles(this, {
+            overflow: 'hidden'
         });
-        this.applyStyles(rightCap, {
-            width: `${capDiameter}px`,
-            height: `${capDiameter}px`,
-            borderRadius: '50%',
-            backgroundColor: color,
-            position: 'absolute',
-            top: '0px',
-            left: `${trackWidth}px`
+        this.progressRect = new Rectangle({
+            width: '0%',
+            height: '100%',
+            background: progressHex
         });
-        this.applyStyles(track, {
-            width: `${trackWidth}px`,
-            height: `${capDiameter}px`,
-            backgroundColor: color,
-            position: 'absolute',
-            top: '0px',
-            left: `${capRadius}px`
+        this.appendChild(this.progressRect);
+        this.setProgress(0);
+    }
+    setProgress(percent) {
+        percent = clamp(percent, 0, 100);
+        this.progressRect.style.width = `${percent}%`
+    }
+}
+export class DoubleProgressBar extends SemicircleBar {
+    constructor(options) {
+        const {width, height, containerHex, rearProgressHex, frontProgressHex, top=0, left=0} = options;
+        const superOptions = {
+            width: width,
+            height: height,
+            background: containerHex,
+            top,
+            left
+        };
+        super(superOptions);
+        this.style.overflow = 'hidden';
+        const progressBarOptions = {
+            width: width,
+            height: height,
+            containerHex: rearProgressHex,
+            progressHex: frontProgressHex
+        }
+        this.progressBar = new ProgressBar(progressBarOptions);
+        this.appendChild(this.progressBar);
+        this.setProgressRear(0);
+    }
+    setProgressRear(percent) {
+        percent = clamp(percent, 0, 100);
+        UIElement.assignStyles(this.progressBar, {
+            transform: `translateX(${percent - 100}%)`
         });
-        if (!options.leftCapInvisible) this.appendChild(leftCap);
-        if (!options.rightCapInvisible) this.appendChild(rightCap);
-        this.appendChild(track);
+    }
+    setProgressFront(percent) {
+        percent = clamp(percent, 0, 100);
+        this.progressBar.setProgress(percent);
     }
 }
 
-export class SliderBar extends UIElement {
+/*export class Slider extends UIElement {
     constructor(options) {
         super();
-        const {
-            width, height
-        } = options;
-        const rimOptions = { width, height, color: '#bbbbbb' };
-        const darkOptions = { width, height, color: '#333333' };
-        const lightOptions = { width: width - 2, height: height - 2, color: GLASS_LIGHT_HEX, leftCapInvisible: true };
-        const mediumOptions = { width: width - 2, height: height - 2, color: '#666666', rightCapInvisible: true };
-        const rim = new CapsuleBar(rimOptions);
-        this.applyStyles(rim, {
+        const {width, height} = options;
+        const rimOptions = { width, height, colorHex: '#bbbbbb' };
+        const darkOptions = { width, height, colorHex: '#333333' };
+        const progressOptions = { width: width - 2, height: height - 2, containerHex: GLASS_LIGHT_HEX, progressHex: '#666666' };
+        const rim = new SemicircleBar(rimOptions);
+        UIElement.assignStyles(rim, {
             position: 'absolute',
             top: '1px',
             left: '0px'
         });
-        const dark = new CapsuleBar(darkOptions);
-        this.applyStyles(dark, {
+        const dark = new SemicircleBar(darkOptions);
+        UIElement.assignStyles(dark, {
             position: 'absolute',
             top: '0px',
             left: '0px'
         });
-        const light = new CapsuleBar(lightOptions);
-        this.applyStyles(light, {
-            position: 'absolute',
-            top: '1px',
-            left: '1px'
-        });
-        const medium = new CapsuleBar(mediumOptions);
-        this.applyStyles(medium, {
+        const progressBar = new ProgressBar(progressOptions);
+        UIElement.assignStyles(progressBar, {
             position: 'absolute',
             top: '1px',
             left: '1px'
         });
         const handle = document.createElement('div');
-        this.applyStyles(handle, {
+        UIElement.assignStyles(handle, {
             width: `${height}px`,
             height: `${height}px`,
             borderRadius: '50%',
@@ -312,8 +332,40 @@ export class SliderBar extends UIElement {
         });
         this.appendChild(rim);
         this.appendChild(dark);
-        this.appendChild(light);
-        this.appendChild(medium);
+        this.appendChild(progressBar);
         this.appendChild(handle);
+    }
+}*/
+export class DoubleProgressSlider extends UIElement {
+    constructor(options) {
+        super();
+        const {width, height, top=0, left=0} = options;
+        const rimOptions = {width, height, background: '#bbbbbb', top: 1};
+        const rim = new SemicircleBar(rimOptions);
+        const darkOptions = {width, height, background: '#333333'};
+        const dark = new SemicircleBar(darkOptions);
+        const doubleProgressOptions = {
+            width: width - 2,
+            height: height - 2,
+            containerHex: '#151c23',
+            rearProgressHex: GLASS_LIGHT_HEX,
+            frontProgressHex: '#666666',
+            top: 1,
+            left: 1
+        }
+        this.doubleProgressBar = new DoubleProgressBar(doubleProgressOptions);
+        this.appendChild(rim);
+        this.appendChild(dark);
+        this.appendChild(this.doubleProgressBar);
+        UIElement.assignStyles(this, {
+            left: `${left}px`,
+            top: `${top}px`
+        });
+    }
+    setProgressRear(percent) {
+        this.doubleProgressBar.setProgressRear(percent);
+    }
+    setProgressFront(percent) {
+        this.doubleProgressBar.setProgressFront(percent);
     }
 }
