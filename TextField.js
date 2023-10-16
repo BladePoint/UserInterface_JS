@@ -12,8 +12,11 @@ export class TextField extends UIElement {
             fontSize = '16px',
             color = '#000000',
             textAlign = 'left', // 'center', 'right', 'justify'
-            left = 0,
-            top = 0
+            whiteSpace = 'nowrap', // 'normal'
+            left = '',
+            right = '',
+            top = '',
+            bottom = ''
         } = options;
         UIElement.assignStyles(this, {
             width: UIElement.parsePxArgument(width),
@@ -23,8 +26,11 @@ export class TextField extends UIElement {
             fontSize: UIElement.parsePxArgument(fontSize),
             color,
             textAlign,
+            whiteSpace,
             left: UIElement.parsePxArgument(left),
+            right: UIElement.parsePxArgument(right),
             top: UIElement.parsePxArgument(top),
+            bottom: UIElement.parsePxArgument(bottom),
             userSelect : 'none',
             overflow: 'hidden'
             /*lineHeight,

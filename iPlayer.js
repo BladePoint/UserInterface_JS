@@ -1,10 +1,43 @@
 import { UIElement, UIButton } from './UIElement.js';
-import { Rectangle } from './Primitives.js';
-import { Circle } from './Primitives.js';
-import { SemicircleBar } from './Primitives.js';
+import { getGradient, AcuteTriangle, Circle, Rectangle, SemicircleBar, LEFT_TO_RIGHT, RIGHT_TO_LEFT, TOP_TO_BOTTOM, BOTTOM_TO_TOP } from '../UserInterface_JS/Primitives.js';
 import { clamp } from '../Utilities_JS/mathUtils.js';
-
+export const ICON_UP_TOP_HEX = '#000000';
+export const ICON_UP_BOTTOM_HEX = '#333333';
+export const ICON_DOWN_TOP_HEX = '#202020';
+export const ICON_DOWN_BOTTOM_HEX = '#363363';
+export const SHADOW_UP_HEX = '#ffffff';
+export const SHADOW_DOWN_HEX = '#bbbbbb';
+export const iconUpGradient = getGradient('iconUp', [ICON_UP_TOP_HEX, ICON_UP_BOTTOM_HEX], TOP_TO_BOTTOM);
+export const iconDownGradient = getGradient('iconDown', [ICON_DOWN_TOP_HEX, ICON_DOWN_BOTTOM_HEX], TOP_TO_BOTTOM);
 const GLASS_LIGHT_HEX = '#eaebdc';
+class iButton extends UIButton {
+    constructor(pointerElement, upFunction=null) {
+        super();
+        this.pointerElement = pointerElement;
+        this.addMouseListeners(pointerElement);
+        this.upFunction = upFunction;
+    }
+    enable() {this.pointerElement.enable();}
+    disable() {this.pointerElement.disable();}
+    onDown = (evt) => {
+        super.onDown(evt);
+        this.downState();
+    }
+    onLeave = (evt) => {
+        super.onLeave(evt);
+        this.upState();
+    }
+    onUp = (evt) => {
+        if (this.isMouseDown) {
+            if (this.upFunction) this.upFunction();
+        }
+        super.onUp(evt);
+        this.upState();
+    }
+    upState() {}
+    downState() {}
+}
+
 export class ShadedRect extends UIElement {
     constructor(options) {
         super();
@@ -71,34 +104,6 @@ export class RectButton extends UIElement {
     }
 }
 
-class iButton extends UIButton {
-    constructor(pointerElement, upFunction=null) {
-        super();
-        this.pointerElement = pointerElement;
-        this.addMouseListeners(pointerElement);
-        this.upFunction = upFunction;
-    }
-    enable() {this.pointerElement.enable();}
-    disable() {this.pointerElement.disable();}
-    onDown = (evt) => {
-        super.onDown(evt);
-        this.downState();
-    }
-    onLeave = (evt) => {
-        super.onLeave(evt);
-        this.upState();
-    }
-    onUp = (evt) => {
-        if (this.isMouseDown) {
-            console.log('up');
-            if (this.upFunction) this.upFunction();
-        }
-        super.onUp(evt);
-        this.upState();
-    }
-    upState() {}
-    downState() {}
-}
 export class ShadedCircle extends iButton {
     constructor(options) {
         const {
@@ -156,7 +161,7 @@ export class CircleButton extends ShadedCircle {
             rimHex = '#cccccc',
             left = 0, top = 0
         } = options;
-        super({ diameter });
+        super(options);
         const rim = new Circle({
             diameter,
             background: rimHex,
@@ -253,7 +258,6 @@ export class ProgressBar extends SemicircleBar {
             background: progressHex
         });
         this.appendChild(this.progressRect);
-        this.setProgress(0);
     }
     setProgress(percent) {
         percent = clamp(percent, 0, 100);
@@ -336,7 +340,7 @@ export class DoubleProgressBar extends SemicircleBar {
         this.appendChild(handle);
     }
 }*/
-export class DoubleProgressSlider extends UIElement {
+export class DoubleProgressSeekBar extends UIElement {
     constructor(options) {
         super();
         const {width, height, top=0, left=0} = options;
@@ -367,5 +371,47 @@ export class DoubleProgressSlider extends UIElement {
     }
     setProgressFront(percent) {
         this.doubleProgressBar.setProgressFront(percent);
+    }
+}
+
+export class TriangleShadow extends UIElement {
+    constructor(options) {
+        super(UIElement.SVG);
+        const {orientation = AcuteTriangle.UP, width, height} = options;
+        this.polygon = this.drawPolygon(orientation, width, height);
+        this.element.appendChild(this.polygon);
+        UIElement.assignAttributes(this.element, {
+            width,
+            height: height + 1
+        });
+    }
+    drawPolygon(orientation, width, height) {
+        const polygon = UIElement.parseElementType(UIElement.POLYGON);
+        let points;
+        switch (orientation) {
+            case AcuteTriangle.UP:
+                //points = `0,${height} ${width/2},0 ${width},${height}`;
+                break;
+            case AcuteTriangle.DOWN:
+                //points = `0,0 ${width/2},${height} ${width},0`;
+                break;
+            case AcuteTriangle.LEFT:
+                //points = `${width},0 0,${height/2} ${width},${height}`;
+                break;
+            case AcuteTriangle.RIGHT:
+                points = `0,0 ${width},${height/2} ${width},${height/2+1} 0,${height+1}`;
+                break;
+            default:
+                throw new Error(`Invalid TriangleShadow orientation "${this.orientation}".`);
+        }
+        polygon.setAttribute('points', points);
+        return polygon;
+    }
+    parseStateOptions(options) {
+        this.element.setAttribute('transform', `translate(${options.left}, ${options.top})`);
+        this.colorPolygon(options.colorHex);
+    }
+    colorPolygon(colorHex) {
+        this.polygon.setAttribute("fill", colorHex);
     }
 }
