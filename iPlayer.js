@@ -1,6 +1,14 @@
-import { UIElement, UIButton } from './UIElement.js';
-import { getGradient, AcuteTriangle, Circle, Rectangle, SemicircleBar, LEFT_TO_RIGHT, RIGHT_TO_LEFT, TOP_TO_BOTTOM, BOTTOM_TO_TOP } from '../UserInterface_JS/Primitives.js';
+import { UIButton } from './UIButton.js';
+import { UIElement } from './UIElement.js';
+import { getGradient, AcuteTriangle, Circle, Rectangle, SemicircleBar } from './Primitives.js';
+import { LEFT_TO_RIGHT, RIGHT_TO_LEFT, TOP_TO_BOTTOM, BOTTOM_TO_TOP } from '../Utilities_JS/constants.js';
 import { clamp } from '../Utilities_JS/mathUtils.js';
+export const HIGHLIGHT_HEX = '#ffffff';
+export const OUTLINE_HEX = '#666666';
+export const GRADIENT_TOP_HEX = '#eeeeee';
+export const GRADIENT_BOTTOM_HEX = '#999999';
+export const RIM_HEX = '#eaeaea';
+export const RECT_BUTTON_GRADIENT_BOTTOM_HEX = '#b0b0b0';
 export const ICON_UP_TOP_HEX = '#000000';
 export const ICON_UP_BOTTOM_HEX = '#333333';
 export const ICON_DOWN_TOP_HEX = '#202020';
@@ -9,16 +17,13 @@ export const SHADOW_UP_HEX = '#ffffff';
 export const SHADOW_DOWN_HEX = '#bbbbbb';
 export const iconUpGradient = getGradient('iconUp', [ICON_UP_TOP_HEX, ICON_UP_BOTTOM_HEX], TOP_TO_BOTTOM);
 export const iconDownGradient = getGradient('iconDown', [ICON_DOWN_TOP_HEX, ICON_DOWN_BOTTOM_HEX], TOP_TO_BOTTOM);
-const GLASS_LIGHT_HEX = '#eaebdc';
+export const GLASS_LIGHT_HEX = '#eaebdc';
+
 class iButton extends UIButton {
-    constructor(pointerElement, upFunction=null) {
-        super();
-        this.pointerElement = pointerElement;
-        this.addMouseListeners(pointerElement);
-        this.upFunction = upFunction;
+    constructor(containerElement, pointerElement=null, upFunction=null) {
+        super(containerElement, pointerElement, upFunction);
+        this.addMouseListeners();
     }
-    enable() {this.pointerElement.enable();}
-    disable() {this.pointerElement.disable();}
     onDown = (evt) => {
         super.onDown(evt);
         this.downState();
@@ -28,97 +33,251 @@ class iButton extends UIButton {
         this.upState();
     }
     onUp = (evt) => {
-        if (this.isMouseDown) {
-            if (this.upFunction) this.upFunction();
-        }
         super.onUp(evt);
         this.upState();
     }
+    enable() {UIElement.setPointer(this._pointerElement, 'visiblePainted');}
     upState() {}
     downState() {}
 }
 
-export class ShadedRect extends UIElement {
+export class ShadedRect extends Rectangle {
     constructor(options) {
-        super();
         const {
             width, height,
-            lightHex = '#ffffff', darkHex = '#666666',
-            topGradientHex = '#eeeeee', bottomGradientHex = '#999999'
+            borderRadius = 6,
+            lightHex = HIGHLIGHT_HEX, darkHex = OUTLINE_HEX,
+            gradientTopHex = GRADIENT_TOP_HEX, gradientBottomHex = GRADIENT_BOTTOM_HEX,
+            left = 0, top = 0
         } = options;
-        const dark = new Rectangle({
-            width,
-            height,
-            borderRadius: 6,
-            background: darkHex
+        super({
+            width, height,
+            borderRadius,
+            background: darkHex,
+            left, top
         });
-        const light = new Rectangle({
+        const innerBorderRadius = borderRadius - 1;
+        this.defaultHighlight = {
             width: width - 2,
             height: height - 2,
-            borderRadius: 5,
+            borderRadius: innerBorderRadius,
             background: `linear-gradient(${lightHex}, ${darkHex})`,
             top: 1,
             left: 1
-        });
-        const gradient = new Rectangle({
+        };
+        this.highlight = new Rectangle(this.defaultHighlight);
+        this.defaultGradient = {
             width: width - 2,
             height: height - 3,
-            borderRadius: 5,
-            background: `linear-gradient(${topGradientHex}, ${bottomGradientHex})`,
+            borderRadius: innerBorderRadius,
+            background: `linear-gradient(${gradientTopHex}, ${gradientBottomHex})`,
             top: 2,
             left: 1
-        });
-        this.appendChild(dark);
-        this.appendChild(light);
-        this.appendChild(gradient);
+        };
+        this.gradient = new Rectangle(this.defaultGradient);
+        this.appendChild(this.highlight);
+        this.appendChild(this.gradient);
     }
 }
 
-export class RectButton extends UIElement {
+class RectRimGroup extends Rectangle {
     constructor(options) {
-        super();
         const {
             width, height,
-            rimHex = '#ffffff',
-            bottomGradientHex = '#b0b0b0',
+            borderRadius = 6,
+            rimHex = RIM_HEX,
+            gradientBottomHex = RECT_BUTTON_GRADIENT_BOTTOM_HEX,
             left = 0, top = 0
         } = options;
-        const rim = new Rectangle({
+        super({
             width,
             height,
-            borderRadius: 6,
+            borderRadius,
             background: rimHex,
-            top: 1
+            left,
+            top: top + 1
         });
-        const shadedRect = new ShadedRect({
+        this.shadedRect = new ShadedRect({
             width,
             height,
-            bottomGradientHex
+            borderRadius,
+            gradientBottomHex,
+            top: -1
         });
-        this.appendChild(rim);
-        this.appendChild(shadedRect);
-        UIElement.assignStyles(this, {
-            left: UIElement.parsePxArgument(left),
-            top: UIElement.parsePxArgument(top)
-        });
+        this.appendChild(this.shadedRect);
     }
 }
 
-export class ShadedCircle extends iButton {
+export class RectButton extends iButton {
+    constructor(options) {
+        const {
+            upFunction,
+            width, height,
+            borderRadius,
+            rimHex,
+            gradientBottomHex,
+            left, top
+        } = options;
+        const rectRimGroup = new RectRimGroup({
+            width, height,
+            borderRadius,
+            rimHex,
+            gradientBottomHex,
+            left, top
+        });
+        super(rectRimGroup, rectRimGroup.shadedRect.highlight, upFunction);
+    }
+}
+
+export class ShadedCircle extends Circle {
+    constructor(options) {
+        const {
+            width, height,
+            darkHex = '#333333', lightHex = HIGHLIGHT_HEX,
+            gradientBottomHex = GRADIENT_BOTTOM_HEX,
+            left = 0, top = 0
+        } = options;
+        super({
+            width, height,
+            background: darkHex,
+            left, top
+        });
+        this.light = new Circle({
+            width: width - 2,
+            height: height - 2,
+            background: lightHex,
+            top: 1,
+            left: 1
+        });
+        this.defaultGradient = {
+            width: width - 2,
+            height: height - 3,
+            background: `linear-gradient(${lightHex}, ${gradientBottomHex})`,
+            top: 2,
+            left: 1
+        };
+        this.altGradient = {
+            width: width - 2,
+            height: height - 2,
+            background: `linear-gradient(${gradientBottomHex}, ${lightHex})`,
+            top: 1,
+            left: 1
+        };
+        this.gradient = new Circle(this.defaultGradient);
+        this.appendChild(this.light);
+        this.appendChild(this.gradient);
+    }
+}
+
+class CircleRimGroup extends Circle {
+    constructor(options) {
+        const {
+            width, height,
+            rimHex = '#cccccc',
+            darkHex = '#333333', lightHex,
+            gradientBottomHex,
+            left = 0, top = 0
+        } = options;
+        super({
+            width,
+            height,
+            background: rimHex,
+            left,
+            top: top + 1
+        });
+        this.shadedCircle = new ShadedCircle({
+            width, height,
+            darkHex, lightHex,
+            gradientBottomHex,
+            top: -1
+        });
+        this.appendChild(this.shadedCircle);
+    }
+}
+/*export class ShadedCircle extends iButton {
     constructor(options) {
         const {
             upFunction,
             diameter,
             darkHex = '#333333', lightHex = '#ffffff',
-            bottomGradientHex = '#999999'
+            gradientBottomHex = '#999999'
         } = options;
         const dark = new Circle({
             diameter,
             background: darkHex
         });
         super(dark, upFunction);
-        this.upGradient = `linear-gradient(${lightHex}, ${bottomGradientHex})`;
-        this.downGradient = `linear-gradient(${bottomGradientHex}, ${lightHex})`;
+        this.upOptions = {
+            width: diameter - 2,
+            height: diameter - 3,
+            background: `linear-gradient(${lightHex}, ${gradientBottomHex})`,
+            top: 2,
+            left: 1
+        };
+        this.downOptions = {
+            width: diameter - 2,
+            height: diameter - 2,
+            background: `linear-gradient(${gradientBottomHex}, ${lightHex})`,
+            top: 1,
+            left: 1
+        };
+        this.light = new Circle({
+            diameter: diameter - 2,
+            background: lightHex,
+            top: 1,
+            left: 1
+        });
+        this.gradient = new Circle(this.upOptions);
+        this.appendChild(dark);
+        this.appendChild(this.light);
+        this.appendChild(this.gradient);
+    }
+    upState() {
+        this.light.style.display = 'inline-block';
+        this.gradient.parseOptions(this.upOptions);
+    }
+    downState() {
+        this.light.style.display = 'none';
+        this.gradient.parseOptions(this.downOptions);
+    }
+}*/
+
+export class CircleButton extends iButton {
+    constructor(options) {
+        const {
+            upFunction,
+            width, height,
+            rimHex = '#cccccc',
+            darkHex = '#333333', lightHex = '#ffffff',
+            gradientBottomHex = '#999999',
+            left = 0, top = 0
+        } = options;
+        const circleRimGroup = new CircleRimGroup({
+            width, height,
+            rimHex,
+            darkHex, lightHex,
+            gradientBottomHex,
+            left, top
+        });
+        super(circleRimGroup, circleRimGroup.shadedCircle, upFunction);
+    }
+}
+/*
+export class ShadedCircle extends iButton {
+    constructor(options) {
+        const {
+            upFunction,
+            diameter,
+            darkHex = '#333333', lightHex = '#ffffff',
+            gradientBottomHex = '#999999'
+        } = options;
+        const dark = new Circle({
+            diameter,
+            background: darkHex
+        });
+        super(dark, upFunction);
+        this.upGradient = `linear-gradient(${lightHex}, ${gradientBottomHex})`;
+        this.downGradient = `linear-gradient(${gradientBottomHex}, ${lightHex})`;
         this.upOptions = {
             width: diameter - 2,
             height: diameter - 3,
@@ -168,19 +327,34 @@ export class CircleButton extends ShadedCircle {
             top: 1
         });
         this.prependChild(rim);
-        UIElement.assignStyles(this, {
-            left: UIElement.parsePxArgument(left),
-            top: UIElement.parsePxArgument(top)
+        this.assignStyles({
+            left,
+            top
         });
     }
-}
+}*/
 
-export class GlassPanel extends UIElement {
+export class GlassPanel extends Rectangle {
     constructor(options) {
-        super();
-        const {width, height, colorHex, left=0, top=0} = options;
+        const {width, height, colorString, rimHex = RIM_HEX, left=0, top=0} = options;
+        const borderRadius = 4;
+        super({
+            width,
+            height,
+            borderRadius: 4,
+            background: rimHex,
+            left,
+            top: top + 1,
+        });
+        const dark = new Rectangle({
+            width,
+            height,
+            borderRadius,
+            background: OUTLINE_HEX,
+            top: -1
+        });
         let lightHex, darkHex;
-        switch (colorHex) {
+        switch (colorString) {
             case 'purple':
                 lightHex = '#8585ae';
                 darkHex = '#7779a0';
@@ -190,53 +364,34 @@ export class GlassPanel extends UIElement {
                 darkHex = '#cfd2c1';
                 break;
         }
-        const rim = new Rectangle({
-            width,
-            height,
-            borderRadius: 4,
-            background: '#ffffff',
-            top: 1
-        });
-        const dark = new Rectangle({
-            width,
-            height,
-            borderRadius: 4,
-            background: '#666666'
-        });
         const shadow = new Rectangle({
             width: width - 2,
             height: height - 2,
-            borderRadius: 3,
+            borderRadius: borderRadius - 1,
             background: darkHex,
-            top: 1,
             left: 1
         });
         const light = new Rectangle({
             width: width - 4,
             height: height - 3,
-            borderRadius: 2,
+            borderRadius: borderRadius - 2,
             background: lightHex,
-            top: 2,
+            top: 1,
             left: 2
         });
         const gradientHeight = height * 0.45;
         const gradient = new Rectangle({
             width: width - 4,
             height: gradientHeight,
-            borderRadius: '0px 0px 4px 4px',
+            borderRadius: `0px 0px ${borderRadius}px ${borderRadius}px`,
             background: `linear-gradient(${darkHex}, ${lightHex})`,
-            top: height - gradientHeight - 1,
+            top: height - gradientHeight - 2,
             left: 2
         });
-        this.appendChild(rim);
         this.appendChild(dark);
         this.appendChild(shadow);
         this.appendChild(light);
         this.appendChild(gradient);
-        UIElement.assignStyles(this, {
-            left: `${left}px`,
-            top: `${top}px`
-        });
     }
 }
 
@@ -374,7 +529,7 @@ export class DoubleProgressSeekBar extends UIElement {
     }
 }
 
-export class TriangleShadow extends UIElement {
+/*export class TriangleShadow extends UIElement {
     constructor(options) {
         super(UIElement.SVG);
         const {orientation = AcuteTriangle.UP, width, height} = options;
@@ -414,4 +569,4 @@ export class TriangleShadow extends UIElement {
     colorPolygon(colorHex) {
         this.polygon.setAttribute("fill", colorHex);
     }
-}
+}*/

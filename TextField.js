@@ -18,32 +18,29 @@ export class TextField extends UIElement {
             top = '',
             bottom = ''
         } = options;
-        UIElement.assignStyles(this, {
-            width: UIElement.parsePxArgument(width),
-            height: UIElement.parsePxArgument(height),
+        this.assignStyles({
+            width,
+            height,
             fontFamily,
             fontWeight,
-            fontSize: UIElement.parsePxArgument(fontSize),
+            fontSize,
             color,
             textAlign,
             whiteSpace,
-            left: UIElement.parsePxArgument(left),
-            right: UIElement.parsePxArgument(right),
-            top: UIElement.parsePxArgument(top),
-            bottom: UIElement.parsePxArgument(bottom),
-            userSelect : 'none',
+            left,
+            right,
+            top,
+            bottom,
+            userSelect: 'none',
             overflow: 'hidden'
-            /*lineHeight,
+            /*, lineHeight,
             letterSpacing,
             border: '2px solid red',
-            //boxSizing: 'border-box'*/
+            boxSizing: 'border-box'*/
         });
         this.text = text;
     }
-    /**
-     * @param {string} newText
-     */
     set text(newText) {
-        this.element.innerText = newText;
+        this._element.innerText = newText;
     }
 }

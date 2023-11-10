@@ -1,9 +1,6 @@
 import { UIElement } from './UIElement.js';
 import { degreesToRadians } from '../Utilities_JS/mathUtils.js';
-export const LEFT_TO_RIGHT = 'leftToRight';
-export const RIGHT_TO_LEFT = 'rightToLeft';
-export const TOP_TO_BOTTOM = 'topToBottom';
-export const BOTTOM_TO_TOP = 'bottomToTop';
+import { UP, DOWN, LEFT, RIGHT, LEFT_TO_RIGHT, RIGHT_TO_LEFT, TOP_TO_BOTTOM, BOTTOM_TO_TOP } from '../Utilities_JS/constants.js';
 export function getGradient(id, colors, direction) {
     const parseDirection = (gradient, direction)=> {
         let x1;
@@ -73,13 +70,13 @@ export class Rectangle extends UIElement {
     constructor(options) {
         super();
         const { width, height, background, borderRadius=0, left=0, top=0 } = options;
-        UIElement.assignStyles(this, {
-            width: UIElement.parsePxArgument(width),
-            height: UIElement.parsePxArgument(height),
-            borderRadius: UIElement.parsePxArgument(borderRadius),
+        this.assignStyles({
+            width,
+            height,
+            borderRadius,
             background,
-            left: UIElement.parsePxArgument(left),
-            top: UIElement.parsePxArgument(top)
+            left,
+            top
         });
     }
 }
@@ -87,17 +84,14 @@ export class Rectangle extends UIElement {
 export class Circle extends UIElement {
     constructor(options) {
         super();
-        this.parseOptions(options);
-    }
-    parseOptions(options) {
-        const { diameter, width=diameter, height=diameter, background, left=0, top=0 } = options;
-        UIElement.assignStyles(this, {
-            width: `${width}px`,
-            height: `${height}px`,
+        const { width, height, background, left = 0, top = 0 } = options;
+        this.assignStyles({
+            width: width,
+            height: height,
             borderRadius: '50%',
             background,
-            left: `${left}px`,
-            top: `${top}px`
+            left,
+            top
         });
     }
 }
@@ -106,50 +100,44 @@ export class SemicircleBar extends UIElement {
     constructor(options) {
         super();
         const { width, height, background, left=0, top=0 } = options;
-        UIElement.assignStyles(this, {
-            width: `${width}px`,
-            height:`${height}px`,
+        this.assignStyles({
+            width,
+            height,
             background,
-            borderRadius: `${height / 2}px`,
-            left: `${left}px`,
-            top: `${top}px`
+            borderRadius: height / 2,
+            left,
+            top
         });
     }
 }
 
 export class AcuteTriangle extends UIElement {
-    static UP = "up";
-    static DOWN = "down";
-    static RIGHT = "right";
-    static LEFT = "left";
-
     constructor(options) {
         super(UIElement.SVG);
         const { orientation = AcuteTriangle.UP, width, height } = options;
-        this.orientation = orientation;
         this.width = width;
         this.height = height;
-        this.polygon = this.drawPolygon(width, height);
-        this.element.appendChild(this.polygon);
-        UIElement.assignAttributes(this.element, {
+        this.polygon = this.drawPolygon(orientation, width, height);
+        this.appendChild(this.polygon);
+        this.assignAttributes({
             width,
-            height
+            height,
         });
     }
-    drawPolygon(width, height) {
+    drawPolygon(orientation, width, height) {
         const polygon = UIElement.parseElementType(UIElement.POLYGON);
         let points;
-        switch (this.orientation) {
-            case AcuteTriangle.UP:
+        switch (orientation) {
+            case UP:
                 points = `0,${height} ${width/2},0 ${width},${height}`;
                 break;
-            case AcuteTriangle.DOWN:
+            case DOWN:
                 points = `0,0 ${width/2},${height} ${width},0`;
                 break;
-            case AcuteTriangle.LEFT:
+            case LEFT:
                 points = `${width},0 0,${height/2} ${width},${height}`;
                 break;
-            case AcuteTriangle.RIGHT:
+            case RIGHT:
                 points = `0,0 ${width},${height/2} 0,${height}`;
                 break;
             default:
@@ -159,22 +147,22 @@ export class AcuteTriangle extends UIElement {
         return polygon;
     }
     colorPolygon(color) {
-        const existingGradients = this.element.querySelectorAll('linearGradient');
+        const existingGradients = this._element.querySelectorAll('linearGradient');
         existingGradients.forEach((existingGradient) => {
-            this.element.removeChild(existingGradient);
+            this.removeChild(existingGradient);
         });
         let fillValue;
         if (color instanceof SVGElement) {
-            this.element.appendChild(color);
+            this.appendChild(color);
             fillValue = `url(#${color.id})`;
         } else if (typeof color === 'string') fillValue = color;
-        else throw new Error('Invalid color.');
+        else throw new Error('AcuteTriangle.colorPolygon: Invalid color.');
         this.polygon.setAttribute("fill", fillValue);
     }
-    parseStateOptions(options) {
+    /*parseStateOptions(options) {
         this.colorPolygon(options.color);
         this.element.setAttribute('transform', `translate(${options.left}, ${options.top})`);
-    }
+    }*/
 }
 
 export class EqTriangle extends UIElement {// Can be a solid color only
@@ -182,14 +170,9 @@ export class EqTriangle extends UIElement {// Can be a solid color only
     static HEIGHT = 84;
     static HEIGHT_MULTIPLIER = Math.sqrt(3) / 2;
     static WIDTH_MULTIPLIER = 1 / this.HEIGHT_MULTIPLIER;
-    static UP = "up";
-    static DOWN = "down";
-    static RIGHT = "right";
-    static LEFT = "left";
     constructor(options) {
         super();
-        const { orientation = EqTriangle.UP, color, width=NaN, height=NaN, left=0, top=0 } = options;
-        this.orientation = orientation;
+        const { orientation = UP, color, width=NaN, height=NaN, left=0, top=0 } = options;
         this._originalWidth;
         this._originalHeight;
         this._heightMultiplier;
@@ -198,7 +181,7 @@ export class EqTriangle extends UIElement {// Can be a solid color only
         this._height;
         this._scaleX = 1;
         this._scaleY = 1;
-        this.draw(color);
+        this.draw(orientation, color);
         if (width && !height) this.setWidth(width, true);
         else if (!width && height) this.setHeight(height, true);
         else if (width && height) {
@@ -210,13 +193,13 @@ export class EqTriangle extends UIElement {// Can be a solid color only
             top: `${top}px`
         });
     }
-    draw(color) {
+    draw(orientation, color) {
         const halfWidth = EqTriangle.WIDTH / 2;
         UIElement.assignStyles(this, {
             transformOrigin: 'top left'
         });
-        switch (this.orientation) {
-            case EqTriangle.RIGHT:
+        switch (orientation) {
+            case RIGHT:
                 this._originalWidth = this._width = EqTriangle.HEIGHT;
                 this._originalHeight = this._height = EqTriangle.WIDTH;
                 this._heightMultiplier = EqTriangle.WIDTH_MULTIPLIER;
@@ -226,10 +209,10 @@ export class EqTriangle extends UIElement {// Can be a solid color only
                     height: '0',
                     borderTop: `${halfWidth}px solid transparent`,
                     borderBottom: `${halfWidth}px solid transparent`,
-                    borderLeft: `${EqTriangle.HEIGHT}px solid #ff0000`
+                    borderLeft: `${EqTriangle.HEIGHT}px solid ${color}`
                 });
                 break;
-            case EqTriangle.LEFT:
+            case LEFT:
                 this._originalWidth = this._width = EqTriangle.HEIGHT;
                 this._originalHeight = this._height = EqTriangle.WIDTH;
                 this._heightMultiplier = EqTriangle.WIDTH_MULTIPLIER;
@@ -239,10 +222,10 @@ export class EqTriangle extends UIElement {// Can be a solid color only
                     height: '0',
                     borderTop: `${halfWidth}px solid transparent`,
                     borderBottom: `${halfWidth}px solid transparent`,
-                    borderRight: `${EqTriangle.HEIGHT}px solid #ff0000`
+                    borderRight: `${EqTriangle.HEIGHT}px solid ${color}`
                 });
                 break;
-            case EqTriangle.DOWN:
+            case DOWN:
                 this._originalWidth = this._width = EqTriangle.WIDTH;
                 this._originalHeight = this._height = EqTriangle.HEIGHT;
                 this._heightMultiplier = EqTriangle.HEIGHT_MULTIPLIER;
@@ -252,7 +235,7 @@ export class EqTriangle extends UIElement {// Can be a solid color only
                     height: '0',
                     borderLeft: `${halfWidth}px solid transparent`,
                     borderRight: `${halfWidth}px solid transparent`,
-                    borderTop: `${EqTriangle.HEIGHT}px solid #ff0000`
+                    borderTop: `${EqTriangle.HEIGHT}px solid ${color}`
                 });
                 break;
             default: // Default to upward pointing triangle
@@ -265,12 +248,12 @@ export class EqTriangle extends UIElement {// Can be a solid color only
                     height: '0',
                     borderLeft: `${halfWidth}px solid transparent`,
                     borderRight: `${halfWidth}px solid transparent`,
-                    borderBottom: `${EqTriangle.HEIGHT}px solid #ff0000`
+                    borderBottom: `${EqTriangle.HEIGHT}px solid ${color}`
                 });
                 break;
         }
     }
-    get width() {return this._width;}
+    getWidth() {return this._width;}
     setWidth(newWidth, keepAspectRatio=true) {
         if (isNaN(newWidth)) return;
         this._width = newWidth;
@@ -281,7 +264,7 @@ export class EqTriangle extends UIElement {// Can be a solid color only
         }
         UIElement.assignStyles(this, {transform: `scaleX(${this._scaleX}) scaleY(${this._scaleY})`});                
     }
-    get height() {return this._height;}
+    getHeight() {return this._height;}
     setHeight(newHeight, keepAspectRatio=true) {
         if (isNaN(newHeight)) return;
         this._height = newHeight;

@@ -1,3 +1,5 @@
+import { UIButton } from './UIButton.js';
+
 export class UIElement extends EventTarget {
     static SVGNS = "http://www.w3.org/2000/svg";
     static DIV = 'div';
@@ -26,89 +28,85 @@ export class UIElement extends EventTarget {
         UIElement.assignStyles(element, styleObject);
     }
     static parseElementType(elementType) {
-        if (elementType === UIElement.DIV) return document.createElement(UIElement.DIV);
-        else if (elementType === UIElement.SVG) return document.createElementNS(UIElement.SVGNS, UIElement.SVG);
-        else if (elementType === UIElement.POLYGON) return document.createElementNS(UIElement.SVGNS, UIElement.POLYGON);
-        else if (elementType === UIElement.LINEAR_GRADIENT) return document.createElementNS(UIElement.SVGNS, UIElement.LINEAR_GRADIENT);
-        else if (elementType === UIElement.STOP) return document.createElementNS(UIElement.SVGNS, UIElement.STOP);
+        if (elementType === UIElement.DIV) return document.createElement(UIElement.DIV); //HTMLElement
+        else if (elementType === UIElement.SVG) return document.createElementNS(UIElement.SVGNS, UIElement.SVG); //SVGElement
+        else if (elementType === UIElement.POLYGON) return document.createElementNS(UIElement.SVGNS, UIElement.POLYGON); //SVGElement
+        else if (elementType === UIElement.LINEAR_GRADIENT) return document.createElementNS(UIElement.SVGNS, UIElement.LINEAR_GRADIENT); //SVGElement
+        else if (elementType === UIElement.STOP) return document.createElementNS(UIElement.SVGNS, UIElement.STOP); //SVGElement
         else throw new Error(`Invalid elementType "${elementType}".`);
     }
     static parsePxArgument(argument) {
         return typeof argument === 'number' ? `${argument}px` : argument;
+    }
+    static parsePxObject(styleObject) {
+        const returnObject = {};
+        for (const key in styleObject) {
+            if (key === 'width' || key === 'height' || key === 'borderRadius' || key === 'left' || key === 'right' || key === 'top' || key === 'bottom' || key === 'fontSize') {
+                returnObject[key] = UIElement.parsePxArgument(styleObject[key]);
+            } else returnObject[key] = styleObject[key];
+        }
+        return returnObject;
     }
     static setPointer(element, value) {
         const argumentType = typeof value;
         let pointerString;
         if (argumentType === 'boolean') pointerString = value ? 'auto' : 'none';
         else if (argumentType === 'string') pointerString = value;
+        else throw new Error('Invalid data type for "value" parameter in UIElement.setPointer.');
         element.style.pointerEvents = pointerString;
     }
 
     constructor(elementType=UIElement.DIV) {
         super();
-        this.element = UIElement.parseElementType(elementType);
-        UIElement.assignDefaultStyles(this.element,elementType);
+        this._element = UIElement.parseElementType(elementType);
+        UIElement.assignDefaultStyles(this._element,elementType);
     }
     get style() {
-        return this.element.style;
+        return this._element.style;
+    }
+    assignStyles(styleObject) {
+        const parsedStyleObject = UIElement.parsePxObject(styleObject);
+        UIElement.assignStyles(this, parsedStyleObject);
+    }
+    assignAttributes(attributeObject) {
+        const parsedAttributeObject = UIElement.parsePxObject(attributeObject);
+        UIElement.assignAttributes(this._element, parsedAttributeObject);
     }
     appendChild(child) {
-        if (child instanceof UIElement) this.element.appendChild(child.element);
-        else this.element.appendChild(child);
+        if (child instanceof UIElement || child instanceof UIButton) child.appendToParent(this._element);
+        else this._element.appendChild(child);
     }
-    appendChildTo(parent) {
-        parent.appendChild(this.element);
+    appendToParent(parent) {
+        parent.appendChild(this._element);
     }
     prependChild(child) {
-        if (child instanceof UIElement) this.element.insertBefore(child.element, this.element.firstChild);
-        else this.element.insertBefore(child, this.element.firstChild);
+        if (child instanceof UIElement || child instanceof UIButton) child.prependToParent(this._element);
+        else this._element.insertBefore(child, this._element.firstChild);
+    }
+    prependToParent(parent) {
+        parent.insertBefore(this._element, parent.firstChild);
+    }
+    removeChild(child) {
+        if (child instanceof UIElement || child instanceof UIButton) child.removeFromParent(this._element);
+        else this._element.removeChild(child);
+    }
+    removeFromParent(parent) {
+        parent.removeChild(this._element);
     }
     dispatchEventWith(eventName, eventData = {}) {
         const event = new CustomEvent(eventName, { detail: eventData });
         this.dispatchEvent(event);
+    }
+    addInteractiveListener(eventName, callback) {
+        this._element.addEventListener(eventName, callback);
+    }
+    removeInteractiveListener(eventName, callback) {
+        this._element.removeEventListener(eventName, callback);
     }
     enable() {
         UIElement.setPointer(this, true);
     }
     disable() {
         UIElement.setPointer(this, false);
-    }
-}
-
-export class UIButton extends UIElement {
-    static MOUSE_ENTER = 'mouseenter';
-    static MOUSE_DOWN = 'mousedown';
-    static MOUSE_LEAVE = 'mouseleave';
-    static MOUSE_UP = 'mouseup';
-    static addEnterListener(eventTarget, callback) {eventTarget.addEventListener(UIButton.MOUSE_ENTER, callback);}
-    static addDownListener(eventTarget, callback) {eventTarget.addEventListener(UIButton.MOUSE_DOWN, callback);}
-    static addLeaveListener(eventTarget, callback) {eventTarget.addEventListener(UIButton.MOUSE_LEAVE, callback);}
-    static addUpListener(eventTarget, callback) {eventTarget.addEventListener(UIButton.MOUSE_UP, callback);}
-
-    constructor(elementType=UIElement.DIV) {
-        super(elementType);
-        this.isMouseDown = false;
-        this.isMouseHover = false;
-        this.style.cursor = 'pointer';
-    }
-    addMouseListeners(elementTarget) {
-        const eventTarget = elementTarget instanceof UIElement ? elementTarget.element : elementTarget;
-        UIButton.addEnterListener(eventTarget, this.onEnter);
-        UIButton.addDownListener(eventTarget, this.onDown);
-        UIButton.addLeaveListener(eventTarget, this.onLeave);
-        UIButton.addUpListener(eventTarget, this.onUp);
-    }
-    onEnter(evt) {
-        this.isMouseHover = true;
-    }
-    onDown(evt) {
-        this.isMouseDown = true;
-    }
-    onLeave(evt) {
-        this.isMouseHover = false;
-        this.isMouseDown = false;
-    }
-    onUp(evt) {
-        this.isMouseDown = false;
     }
 }
