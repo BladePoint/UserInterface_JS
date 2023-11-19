@@ -69,60 +69,36 @@ export function getGradient(id, colors, direction) {
 export class Rectangle extends UIElement {
     constructor(options) {
         super();
-        const { width, height, background, borderRadius=0, left=0, top=0 } = options;
-        this.assignStyles({
-            width,
-            height,
-            borderRadius,
-            background,
-            left,
-            top
-        });
+        const {width, height, background, borderRadius=0, left=0, top=0} = options;
+        this.assignStyles({width, height, borderRadius, background, left, top});
     }
 }
 
 export class Circle extends UIElement {
     constructor(options) {
         super();
-        const { width, height, background, left = 0, top = 0 } = options;
-        this.assignStyles({
-            width: width,
-            height: height,
-            borderRadius: '50%',
-            background,
-            left,
-            top
-        });
+        const {width, height, background, left = 0, top = 0} = options;
+        this.assignStyles({width, height, borderRadius: '50%', background, left, top});
     }
 }
 
 export class SemicircleBar extends UIElement {
     constructor(options) {
         super();
-        const { width, height, background, left=0, top=0 } = options;
-        this.assignStyles({
-            width,
-            height,
-            background,
-            borderRadius: height / 2,
-            left,
-            top
-        });
+        const {width, height, background, left=0, top=0} = options;
+        this.assignStyles({width, height, background, borderRadius:height/2, left, top});
     }
 }
 
 export class AcuteTriangle extends UIElement {
     constructor(options) {
         super(UIElement.SVG);
-        const { orientation = AcuteTriangle.UP, width, height } = options;
-        this.width = width;
-        this.height = height;
+        const {orientation = UP, width, height, color, left=0, top=0} = options;
         this.polygon = this.drawPolygon(orientation, width, height);
         this.appendChild(this.polygon);
-        this.assignAttributes({
-            width,
-            height,
-        });
+        this.assignAttributes({width, height});
+        this.colorPolygon(color);
+        this.translatePolygon(left, top);
     }
     drawPolygon(orientation, width, height) {
         const polygon = UIElement.parseElementType(UIElement.POLYGON);
@@ -141,28 +117,30 @@ export class AcuteTriangle extends UIElement {
                 points = `0,0 ${width},${height/2} 0,${height}`;
                 break;
             default:
-                throw new Error(`Invalid AcuteTriangle orientation "${this.orientation}".`);
+                throw new Error(`AcuteTriangle.drawPolygon: Invalid orientation "${this.orientation}".`);
         }
         polygon.setAttribute('points', points);
         return polygon;
     }
     colorPolygon(color) {
-        const existingGradients = this._element.querySelectorAll('linearGradient');
-        existingGradients.forEach((existingGradient) => {
-            this.removeChild(existingGradient);
-        });
+        if (color instanceof SVGElement && color.parentElement === this._element) return;
+        while (this._element.children.length > 1) this.removeChild(this._element.children[1]);
         let fillValue;
         if (color instanceof SVGElement) {
             this.appendChild(color);
             fillValue = `url(#${color.id})`;
         } else if (typeof color === 'string') fillValue = color;
         else throw new Error('AcuteTriangle.colorPolygon: Invalid color.');
-        this.polygon.setAttribute("fill", fillValue);
+        this.polygon.setAttribute('fill', fillValue);
     }
-    /*parseStateOptions(options) {
-        this.colorPolygon(options.color);
-        this.element.setAttribute('transform', `translate(${options.left}, ${options.top})`);
-    }*/
+    translatePolygon(left, top) {
+        this._element.setAttribute('transform', `translate(${left}, ${top})`);
+    }
+    colorAndTranslate(options) {
+        const {color, left=0, top=0} = options;
+        this.colorPolygon(color);
+        this.translatePolygon(left, top);
+    }
 }
 
 export class EqTriangle extends UIElement {// Can be a solid color only
@@ -172,7 +150,7 @@ export class EqTriangle extends UIElement {// Can be a solid color only
     static WIDTH_MULTIPLIER = 1 / this.HEIGHT_MULTIPLIER;
     constructor(options) {
         super();
-        const { orientation = UP, color, width=NaN, height=NaN, left=0, top=0 } = options;
+        const {orientation = UP, color, width=NaN, height=NaN, left=0, top=0} = options;
         this._originalWidth;
         this._originalHeight;
         this._heightMultiplier;

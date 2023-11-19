@@ -33,7 +33,7 @@ export class UIElement extends EventTarget {
         else if (elementType === UIElement.POLYGON) return document.createElementNS(UIElement.SVGNS, UIElement.POLYGON); //SVGElement
         else if (elementType === UIElement.LINEAR_GRADIENT) return document.createElementNS(UIElement.SVGNS, UIElement.LINEAR_GRADIENT); //SVGElement
         else if (elementType === UIElement.STOP) return document.createElementNS(UIElement.SVGNS, UIElement.STOP); //SVGElement
-        else throw new Error(`Invalid elementType "${elementType}".`);
+        else throw new Error(`UIElement.parseElementType: Invalid elementType "${elementType}".`);
     }
     static parsePxArgument(argument) {
         return typeof argument === 'number' ? `${argument}px` : argument;
@@ -52,7 +52,7 @@ export class UIElement extends EventTarget {
         let pointerString;
         if (argumentType === 'boolean') pointerString = value ? 'auto' : 'none';
         else if (argumentType === 'string') pointerString = value;
-        else throw new Error('Invalid data type for "value" parameter in UIElement.setPointer.');
+        else throw new Error('UIElement.setPointer: Invalid data type for "value" parameter.');
         element.style.pointerEvents = pointerString;
     }
 
@@ -65,12 +65,12 @@ export class UIElement extends EventTarget {
         return this._element.style;
     }
     assignStyles(styleObject) {
-        const parsedStyleObject = UIElement.parsePxObject(styleObject);
-        UIElement.assignStyles(this, parsedStyleObject);
+        const parsedObject = UIElement.parsePxObject(styleObject);
+        UIElement.assignStyles(this, parsedObject);
     }
     assignAttributes(attributeObject) {
-        const parsedAttributeObject = UIElement.parsePxObject(attributeObject);
-        UIElement.assignAttributes(this._element, parsedAttributeObject);
+        const parsedObject = UIElement.parsePxObject(attributeObject);
+        UIElement.assignAttributes(this._element, parsedObject);
     }
     appendChild(child) {
         if (child instanceof UIElement || child instanceof UIButton) child.appendToParent(this._element);
