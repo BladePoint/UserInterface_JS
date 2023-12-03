@@ -1,9 +1,10 @@
 import { UIButton } from './UIButton.js';
-import { UIElement } from './UIElement.js';
-import { Circle, Rectangle, SemicircleBar } from './Primitives.js';
+import { UIElement, UIVector } from './UIElement.js';
+import { Button2State } from '../UserInterface_JS/UIButton.js'
+import { Circle, Rectangle, SemicircleBar, ArrowBar, getGradient } from './Primitives.js';
 import { LEFT_TO_RIGHT, RIGHT_TO_LEFT, TOP_TO_BOTTOM, BOTTOM_TO_TOP,
-         UP, DOWN, LEFT, RIGHT } from '../Utilities_JS/constants.js';
-import { clamp } from '../Utilities_JS/mathUtils.js';
+         UP, DOWN, LEFT, RIGHT, NONE } from '../Utilities_JS/constants.js';
+import { clamp, decimalColor } from '../Utilities_JS/mathUtils.js';
 export const HIGHLIGHT_HEX = '#ffffff';
 export const OUTLINE_HEX = '#444444';
 export const GRADIENT_TOP_HEX = '#eeeeee';
@@ -22,28 +23,6 @@ export const BAR_RECT_DEFAULT = `linear-gradient(${ICON_UP_TOP_HEX}, ${ICON_UP_B
 export const BAR_RECT_ALT = `linear-gradient(${ICON_DOWN_TOP_HEX}, ${ICON_DOWN_BOTTOM_HEX})`;
 export const GLASS_LIGHT_HEX = '#eaebdc';
 
-class iButton extends UIButton {
-    constructor(containerElement, pointerElement=null, upFunction=null) {
-        super(containerElement, pointerElement, upFunction);
-        this.addMouseListeners();
-    }
-    onDown = (evt) => {
-        super.onDown(evt);
-        this.downState();
-    }
-    onLeave = (evt) => {
-        super.onLeave(evt);
-        this.upState();
-    }
-    onUp = (evt) => {
-        super.onUp(evt);
-        this.upState();
-    }
-    enable() {UIElement.setPointer(this._pointerElement, 'visiblePainted');}
-    upState() {}
-    downState() {}
-}
-
 export class ShadedRect extends Rectangle {
     constructor(options) {
         const {
@@ -56,24 +35,41 @@ export class ShadedRect extends Rectangle {
         super({width, height, borderRadius, background:darkHex, left, top});
         const innerWidth = width - 2;
         const innerBorderRadius = borderRadius - 1;
-        this.defaultHighlight = {
+        this.defaultHighlight = {background: `linear-gradient(${lightHex}, ${darkHex})`};
+        this.altHighlight = {background:darkHex};
+        this.highlight = new Rectangle({
+            ...this.defaultHighlight,
             width: innerWidth,
             height: height - 2,
             borderRadius: innerBorderRadius,
-            background: `linear-gradient(${lightHex}, ${darkHex})`,
             top: 1, left: 1
-        };
-        this.highlight = new Rectangle(this.defaultHighlight);
+        });
         this.defaultGradient = {
-            width: innerWidth,
             height: height - 3,
-            borderRadius: innerBorderRadius,
             background: `linear-gradient(${gradientTopHex}, ${gradientBottomHex})`,
-            top: 2, left: 1
+            top: 2
         };
-        this.gradient = new Rectangle(this.defaultGradient);
+        this.altGradient = {
+            height: height - 2.25,
+            background: `linear-gradient(${gradientBottomHex}, ${gradientTopHex})`,
+            top: 1.25
+        };
+        this.gradient = new Rectangle({
+            ...this.defaultGradient,
+            width: innerWidth,
+            borderRadius: innerBorderRadius,
+            left: 1
+        });
         this.appendChild(this.highlight);
         this.appendChild(this.gradient);
+    }
+    defaultState() {
+        this.highlight.assignStyles(this.defaultHighlight);
+        this.gradient.assignStyles(this.defaultGradient);
+    }
+    altState() {
+        this.highlight.assignStyles(this.altHighlight);
+        this.gradient.assignStyles(this.altGradient);
     }
 }
 
@@ -83,21 +79,27 @@ class RectRimGroup extends Rectangle {
             width, height,
             borderRadius = 6,
             rimHex = RIM_HEX,
+            darkHex = '#505050',
             gradientBottomHex = RECT_BUTTON_GRADIENT_BOTTOM_HEX,
             left = 0, top = 0
         } = options;
         super({width, height, borderRadius, background:rimHex, left, top:top+1});
-        this.shadedRect = new ShadedRect({width, height, borderRadius, gradientBottomHex, top:-1});
+        this.shadedRect = new ShadedRect({width, height, borderRadius, darkHex, gradientBottomHex, top:-1});
         this.appendChild(this.shadedRect);
     }
+    defaultState() {this.shadedRect.defaultState();}
+    altState() {this.shadedRect.altState();}
 }
 
-export class RectButton extends iButton {
+export class RectButton extends Button2State {
     constructor(options) {
         const {upFunction, width, height, borderRadius, rimHex, gradientBottomHex, left, top} = options;
         const rectRimGroup = new RectRimGroup({width, height, borderRadius, rimHex, gradientBottomHex, left, top});
         super(rectRimGroup, rectRimGroup.shadedRect.highlight, upFunction);
+        this.rectRimGroup = rectRimGroup;
     }
+    upState() {this.rectRimGroup.defaultState();}
+    downState() {this.rectRimGroup.altState();}
 }
 
 export class ShadedCircle extends Circle {
@@ -110,12 +112,12 @@ export class ShadedCircle extends Circle {
         } = options;
         super({width, height, background:darkHex, left, top});
         const innerWidth = width - 2;
-        this.defaultHighlight = {background:lightHex};
+        this.defaultHighlight = {background:`linear-gradient(${lightHex}, ${gradientBottomHex})`};
         this.altHighlight = {background:darkHex};
         this.highlight = new Circle({
+            ...this.defaultHighlight,
             width: innerWidth,
             height: height - 2,
-            background: lightHex,
             top: 1, left: 1
         });
         this.defaultGradient = {
@@ -163,7 +165,7 @@ class CircleRimGroup extends Circle {
     altState() {this.shadedCircle.altState();}
 }
 
-export class CircleButton extends iButton {
+export class CircleButton extends Button2State {
     constructor(options) {
         const {
             upFunction,
@@ -182,48 +184,73 @@ export class CircleButton extends iButton {
 }
 
 export class GlassPanel extends Rectangle {
+    static PURPLE = 'purple';
+    static NORMAL = 'normal';
+    static LOW = 'low';
+    static HIGH = 'high';
     constructor(options) {
-        const {width, height, colorString, rimHex = RIM_HEX, borderRadius=4, left=0, top=0} = options;
-        super({width, height, borderRadius, background:rimHex, left, top:top+1});
-        const dark = new Rectangle({width, height, borderRadius, background:OUTLINE_HEX, top:-1});
-        let lightHex, darkHex;
+        const {width, height, colorString, rimHex=RIM_HEX, level=GlassPanel.NORMAL, borderRadius=4, left=0, top=0} = options;
+        super({width, height, borderRadius, left, top:top+1});
+        this.normalColors = {rim:rimHex, outline:OUTLINE_HEX, light:undefined, dark:undefined, gradient:undefined};
+        this.lowColors = {rim:decimalColor(rimHex, .75), outline:OUTLINE_HEX, light:undefined, dark:undefined, gradient:undefined};
+        this.highColors = {rim:HIGHLIGHT_HEX, outline:OUTLINE_HEX, light:undefined, dark:undefined, gradient:undefined};
         switch (colorString) {
-            case 'purple':
-                lightHex = '#8585ae';
-                darkHex = '#7779a0';
+            case GlassPanel.PURPLE:
+                this.normalColors.light = '#aeaec9';
+                this.normalColors.dark = '#9a9bb8';
+                this.lowColors.light = '#61617f';
+                this.lowColors.dark = '#575874';
+                this.highColors.light = '#BCBCD3';
+                this.highColors.dark = '#A8AAC3';
                 break;
             default:
-                lightHex = GLASS_LIGHT_HEX;
-                darkHex = '#cfd2c1';
+                this.normalColors.light = GLASS_LIGHT_HEX;
+                this.normalColors.dark = '#cfd2c1';
                 break;
         }
-        const shadow = new Rectangle({
+        this.normalColors.gradient = `linear-gradient(${this.normalColors.dark}, ${this.normalColors.light})`;
+        this.lowColors.gradient = `linear-gradient(${this.lowColors.dark}, ${this.lowColors.light})`;
+        this.highColors.gradient = `linear-gradient(${this.highColors.dark}, ${this.highColors.light})`;
+        this.outline = new Rectangle({width, height, borderRadius, top:-1});
+        this.shadow = new Rectangle({
             width: width - 2,
             height: height - 2,
             borderRadius: borderRadius - 1,
-            background: darkHex,
             left: 1
         });
-        const light = new Rectangle({
+        this.light = new Rectangle({
             width: width - 4,
             height: height - 3,
             borderRadius: borderRadius - 2,
-            background: lightHex,
             top: 1, left: 2
         });
         const gradientHeight = height * 0.45;
-        const gradient = new Rectangle({
+        this.gradient = new Rectangle({
             width: width - 4,
             height: gradientHeight,
             borderRadius: `0px 0px ${borderRadius}px ${borderRadius}px`,
-            background: `linear-gradient(${darkHex}, ${lightHex})`,
             top: height - gradientHeight - 2,
             left: 2
         });
-        this.appendChild(dark);
-        this.appendChild(shadow);
-        this.appendChild(light);
-        this.appendChild(gradient);
+        this.appendChild(this.outline);
+        this.appendChild(this.shadow);
+        this.appendChild(this.light);
+        this.appendChild(this.gradient);
+        this.setLevel(level);
+    }
+    setLevel(level) {
+        let colorObject;
+        switch (level) {
+            case GlassPanel.NORMAL: colorObject = this.normalColors; break;
+            case GlassPanel.LOW: colorObject = this.lowColors; break;
+            case GlassPanel.HIGH: colorObject = this.highColors; break;
+            default: throw new Error(`GlassPanel.setLevel: Invald level "${level}".`);
+        }
+        this.style.background = colorObject.rim;
+        this.outline.style.background = colorObject.outline;
+        this.shadow.style.background = colorObject.dark;
+        this.light.style.background = colorObject.light;
+        this.gradient.style.background = colorObject.gradient;
     }
 }
 
@@ -331,61 +358,48 @@ export class DoubleProgressSeekBar extends UIElement {
     set frontProgress(percent) {this.doubleProgressBar.setProgressFront(percent);}
 }
 
-export class TriangleShadow extends UIElement {
+export class TriangleShadow extends UIVector {
     constructor(options) {
-        super(UIElement.SVG);
-        const { orientation=UP, width, height, colorHex, left=0, top=0 } = options;
-        this.polygon = this.drawPolygon(orientation, width, height);
-        this.appendChild(this.polygon);
-        this.assignAttributes({
-            width,
-            height: height + 1,
-        });
-        this.colorPolygon(colorHex);
-        this.translatePolygon(left, top);
+        const {orientation, width, height, color, left=0, top=0} = options;
+        const superOptions = {orientation, width, height:height+1, color, left, top};
+        super(superOptions);
     }
-    drawPolygon(orientation, width, height) {
-        const polygon = UIElement.parseElementType(UIElement.POLYGON);
-        let points;
+    setPoints(orientation=UP, width, height) {
+        height -= 1;
+        const halfWidth = width / 2;
+        const halfHeight = height / 2;
+        const heightPlusOne = height + 1;
         switch (orientation) {
-            case UP:
-                points = `0,${height} ${width/2},0 ${width},${height}`;
-                break;
-            case DOWN:
-                points = `0,0 ${width/2},${height} ${width},0`;
-                break;
-            case LEFT:
-                points = `${width},0 0,${height/2} 0,${height/2+1} ${width},${height+1}`;
-                break;
-            case RIGHT:
-                points = `0,0 ${width},${height/2} ${width},${height/2+1} 0,${height+1}`;
-                break;
-            default:
-                throw new Error(`TriangleShadow.drawPolygon: Invalid orientation "${this.orientation}".`);
+            case UP: return `0,${heightPlusOne} 0,${height} ${halfWidth},0 ${width},${height} ${width},${heightPlusOne}`;
+            case DOWN: return `0,0 ${halfWidth},${height} ${width},0`;
+            case LEFT: return `${width},0 0,${halfHeight} 0,${halfHeight+1} ${width},${heightPlusOne}`;
+            case RIGHT: return `0,0 ${width},${halfHeight} ${width},${halfHeight+1} 0,${heightPlusOne}`;
+            default: throw new Error(`TriangleShadow.setPoints: Invalid orientation "${this.orientation}".`);
         }
-        polygon.setAttribute('points', points);
-        return polygon;
-    }
-    colorPolygon(colorHex) {
-        this.polygon.setAttribute('fill', colorHex);
-    }
-    translatePolygon(left, top) {
-        this._element.setAttribute('transform', `translate(${left}, ${top})`);
-    }
-    colorAndTranslate(options) {
-        const { colorHex, left=0, top=0 } = options;
-        this.colorPolygon(colorHex);
-        this.translatePolygon(left, top);
     }
 }
 
 export class RimmedBar extends Rectangle {
     constructor(options) {
-        const {rimSide=LEFT, width, height, background, barHex, left=0, top=0} = options;
-        super({width, height, background, left, top});
-        const innerWidth = width - 1;
+        const {rimSide=LEFT, width, height, background, barHex, left, top, transform, transformOrigin} = options;
+        super({width, height, background, left, top, transform, transformOrigin});
+        let innerWidth;
+        let innerLeft;
+        switch (rimSide) {
+            case LEFT:
+                innerWidth = width - 1;
+                innerLeft = 1;
+                break;
+            case RIGHT:
+                innerWidth = width - 1;
+                innerLeft = 0;
+                break;
+            case NONE:
+                innerWidth = width;
+                innerLeft = 0;
+                break;
+        }
         const innerHeight = height - 1;
-        const innerLeft = rimSide === LEFT ? 1 : 0;
         this.bar = new Rectangle({width:innerWidth, height:innerHeight, background:barHex, left:innerLeft});
         this.appendChild(this.bar);
         Object.defineProperty(this.style, 'barHex', {
@@ -394,5 +408,35 @@ export class RimmedBar extends Rectangle {
             enumerable: true,
             configurable: false,
         });
+    }
+}
+
+export class ShadedArrowBar extends ArrowBar {
+    constructor(options) {
+        const {
+            width, height,
+            darkHex = OUTLINE_HEX, altTopHex = GRADIENT_TOP_HEX, altBottomHex = GRADIENT_BOTTOM_HEX,
+            left = 0, top = 0
+        } = options;
+        super({width, height, color:darkHex, left, top});
+        const darkenDecimal = .5;
+        const defaultTopHex = decimalColor(altTopHex, darkenDecimal);
+        const defaultBottomHex = decimalColor(altBottomHex, darkenDecimal);
+        this.defaultGradient = getGradient('defaultGradient', [defaultTopHex, defaultBottomHex], TOP_TO_BOTTOM);
+        this.altGradient = getGradient('altGradient', [altTopHex, altBottomHex], TOP_TO_BOTTOM);
+        this.gradientArrowBar = new ArrowBar({
+            color: this.defaultGradient,
+            width: width - 4,
+            height: height - 2,
+            top: 1, left: 2,
+            useXY: true
+        });
+        this.appendChild(this.gradientArrowBar);
+    }
+    defaultState() {
+        this.gradientArrowBar.colorPolygon(this.defaultGradient);
+    }
+    altState() {
+        this.gradientArrowBar.colorPolygon(this.altGradient);
     }
 }

@@ -33,14 +33,13 @@ export class TextField extends UIElement {
             bottom,
             userSelect: 'none',
             overflow: 'hidden'
-            /*, lineHeight,
-            letterSpacing,
-            border: '2px solid red',
-            boxSizing: 'border-box'*/
+            //, lineHeight,
+            //letterSpacing,
+            //,border: '2px solid red',
+            //boxSizing: 'border-box'
         });
         this.text = text;
     }
-    set text(newText) {
-        this._element.innerText = newText;
-    }
+    set text(newText) {this._element.innerText = newText;}
+    get text() {return this._element.innerText;}
 }

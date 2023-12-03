@@ -1,4 +1,4 @@
-import { UIElement } from './UIElement.js';
+import { UIElement, UIVector } from './UIElement.js';
 import { degreesToRadians } from '../Utilities_JS/mathUtils.js';
 import { UP, DOWN, LEFT, RIGHT, LEFT_TO_RIGHT, RIGHT_TO_LEFT, TOP_TO_BOTTOM, BOTTOM_TO_TOP } from '../Utilities_JS/constants.js';
 export function getGradient(id, colors, direction) {
@@ -90,56 +90,34 @@ export class SemicircleBar extends UIElement {
     }
 }
 
-export class AcuteTriangle extends UIElement {
+export class AcuteTriangle extends UIVector {
     constructor(options) {
-        super(UIElement.SVG);
-        const {orientation = UP, width, height, color, left=0, top=0} = options;
-        this.polygon = this.drawPolygon(orientation, width, height);
-        this.appendChild(this.polygon);
-        this.assignAttributes({width, height});
-        this.colorPolygon(color);
-        this.translatePolygon(left, top);
+        super(options);
     }
-    drawPolygon(orientation, width, height) {
-        const polygon = UIElement.parseElementType(UIElement.POLYGON);
-        let points;
+    setPoints(orientation=UP, width, height) {
+        const halfWidth = width / 2;
+        const halfHeight = height / 2;
         switch (orientation) {
-            case UP:
-                points = `0,${height} ${width/2},0 ${width},${height}`;
-                break;
-            case DOWN:
-                points = `0,0 ${width/2},${height} ${width},0`;
-                break;
-            case LEFT:
-                points = `${width},0 0,${height/2} ${width},${height}`;
-                break;
-            case RIGHT:
-                points = `0,0 ${width},${height/2} 0,${height}`;
-                break;
-            default:
-                throw new Error(`AcuteTriangle.drawPolygon: Invalid orientation "${this.orientation}".`);
+            case UP: return `0,${height} ${halfWidth},0 ${width},${height}`;
+            case DOWN: return `0,0 ${halfWidth},${height} ${width},0`;
+            case LEFT: return `${width},0 0,${halfHeight} ${width},${height}`;
+            case RIGHT: return `0,0 ${width},${halfHeight} 0,${height}`;
+            default: throw new Error(`AcuteTriangle.setPoints: Invalid orientation "${this.orientation}".`);
         }
-        polygon.setAttribute('points', points);
-        return polygon;
     }
-    colorPolygon(color) {
-        if (color instanceof SVGElement && color.parentElement === this._element) return;
-        while (this._element.children.length > 1) this.removeChild(this._element.children[1]);
-        let fillValue;
-        if (color instanceof SVGElement) {
-            this.appendChild(color);
-            fillValue = `url(#${color.id})`;
-        } else if (typeof color === 'string') fillValue = color;
-        else throw new Error('AcuteTriangle.colorPolygon: Invalid color.');
-        this.polygon.setAttribute('fill', fillValue);
+}
+
+export class ArrowBar extends UIVector {
+    constructor(options) {
+        super(options);
     }
-    translatePolygon(left, top) {
-        this._element.setAttribute('transform', `translate(${left}, ${top})`);
-    }
-    colorAndTranslate(options) {
-        const {color, left=0, top=0} = options;
-        this.colorPolygon(color);
-        this.translatePolygon(left, top);
+    setPoints(orientation=LEFT_TO_RIGHT, width, height) {
+        const halfHeight = height / 2;
+        const widthMinusHalfHeight = width - halfHeight;
+        switch (orientation) {
+            case LEFT_TO_RIGHT: return `0,${halfHeight} ${halfHeight},0 ${widthMinusHalfHeight},0 ${width},${halfHeight}, ${widthMinusHalfHeight},${height} ${halfHeight},${height}`;
+            default: throw new Error(`ArrowBar.setPoints: Invalid orientation "${this.orientation}".`);
+        }
     }
 }
 
@@ -254,3 +232,54 @@ export class EqTriangle extends UIElement {// Can be a solid color only
         UIElement.assignStyles(this, {transform: `scaleX(${this._scaleX}) scaleY(${this._scaleY})`});  
     }
 }
+
+/*export class ArrowBar extends Rectangle {
+    constructor(options) {
+        const radians = degreesToRadians(45);
+        const sine = Math.sin(radians);
+        const cosine = Math.cos(radians);
+        const {width, height, background, borderRadius=6, left=0, top=0} = options;
+        const arrowSide = Math.abs(height * Math.cos(Math.PI / 4));
+        const cornerDifference = (Math.sqrt(2 * Math.pow(borderRadius, 2)) - borderRadius);
+        const leftVerticalOffset = cornerDifference;
+        const sideAdjust = leftVerticalOffset * Math.sqrt(2);
+        const adjustedArrowSide = arrowSide + sideAdjust;
+        const leftHorizontalOffset = Math.sqrt(2 * Math.pow(adjustedArrowSide,2)) / 2 - cornerDifference;
+        const leftDeltaX = cosine * -leftVerticalOffset + sine * leftHorizontalOffset;
+        const leftDeltaY = sine * -leftVerticalOffset - cosine * leftHorizontalOffset;
+        super({
+            width: width-leftHorizontalOffset*2,
+            height,
+            background: background.replace(/to bottom right, /, ''),
+            left: left+leftHorizontalOffset,
+            top
+        });
+        const leftArrow = new Rectangle({
+            width: adjustedArrowSide,
+            height: adjustedArrowSide,
+            borderRadius,
+            background,
+            left: -leftHorizontalOffset
+        });
+        leftArrow.assignStyles({
+            transform: `rotate(45deg) translate(${leftDeltaX}px, ${leftDeltaY}px)`,
+            transformOrigin: '0 0'
+        });
+        this.appendChild(leftArrow);
+        const rightArrow = new Rectangle({
+            width: adjustedArrowSide,
+            height: adjustedArrowSide,
+            borderRadius,
+            background
+        });
+        const rightHorizontalOffset = width - leftHorizontalOffset*2;
+        const rightVerticalOffset = leftVerticalOffset;
+        const rightDeltaX = cosine * -rightVerticalOffset + sine * rightHorizontalOffset;
+        const rightDeltaY = sine * -rightVerticalOffset - cosine * rightHorizontalOffset;
+        rightArrow.assignStyles({
+            transform: `rotate(45deg) translate(${rightDeltaX}px, ${rightDeltaY}px)`,
+            transformOrigin: '0 0'
+        });
+        this.appendChild(rightArrow);
+    }
+}*/

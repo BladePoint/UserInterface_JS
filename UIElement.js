@@ -110,3 +110,43 @@ export class UIElement extends EventTarget {
         UIElement.setPointer(this, false);
     }
 }
+
+export class UIVector extends UIElement {
+    constructor(options) {
+        super(UIElement.SVG);
+        const {orientation, width, height, color, left=0, top=0, useXY=false} = options;
+        this.useXY = useXY;
+        this.polygon = this.drawPolygon(orientation, width, height);
+        this.appendChild(this.polygon);
+        this.assignAttributes({width, height});
+        this.colorAndPosition({color, left, top});
+    }
+    drawPolygon(orientation, width, height) {
+        const polygon = UIElement.parseElementType(UIElement.POLYGON);
+        const points = this.setPoints(orientation, width, height);
+        polygon.setAttribute('points', points);
+        return polygon;
+    }
+    setPoints(orientation, width, height) {}
+    colorPolygon(color) {
+        if (color instanceof SVGElement && color.parentElement === this._element) return;
+        while (this._element.children.length > 1) this.removeChild(this._element.children[1]);
+        let fillValue;
+        if (color instanceof SVGElement) {
+            this.appendChild(color);
+            fillValue = `url(#${color.id})`;
+        } else if (typeof color === 'string') fillValue = color;
+        else {
+            console.log(color);
+            console.log(color instanceof SVGElement);
+            throw new Error(`${this.constructor.name}.colorPolygon: Invalid color.`);
+        }
+        this.polygon.setAttribute('fill', fillValue);
+    }
+    colorAndPosition(options) {
+        const {color, left=0, top=0} = options;
+        this.colorPolygon(color);
+        if (this.useXY) this.assignAttributes({x:left, y:top});
+        else this.assignStyles({left, top});
+    }
+}
