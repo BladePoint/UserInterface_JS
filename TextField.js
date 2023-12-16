@@ -16,7 +16,8 @@ export class TextField extends UIElement {
             left = '',
             right = '',
             top = '',
-            bottom = ''
+            bottom = '',
+            transform = 'none'
         } = options;
         this.assignStyles({
             width,
@@ -31,6 +32,7 @@ export class TextField extends UIElement {
             right,
             top,
             bottom,
+            transform,
             userSelect: 'none',
             overflow: 'hidden'
             //, lineHeight,
@@ -38,8 +40,10 @@ export class TextField extends UIElement {
             //,border: '2px solid red',
             //boxSizing: 'border-box'
         });
-        this.text = text;
+        if (text !== '') this.text = text;
     }
     set text(newText) {this._element.innerText = newText;}
     get text() {return this._element.innerText;}
+    set htmlText(newText) {this._element.innerHTML = newText;}
+    get htmlText() {return this._element.innerHTML;}
 }

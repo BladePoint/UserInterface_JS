@@ -11,8 +11,14 @@ export class UIButton {
         this._containerElement = containerElement;
         this._pointerElement = pointerElement ? pointerElement : containerElement;
         this.upFunction = upFunction;
-        this.isMouseHover = false;
-        this.isMouseDown = false;
+        this._isMouseHover = false;
+        this._isMouseDown = false;
+        this._isSuspended = false;
+        this.onEnter = this.onEnter.bind(this);
+        this.onLeave = this.onLeave.bind(this);
+        this.onDown = this.onDown.bind(this);
+        this.onUp = this.onUp.bind(this);
+        this.addMouseListeners();
     }
     get style() {
         return this._containerElement.style;
@@ -60,19 +66,26 @@ export class UIButton {
         }
     }
     onEnter(evt) {
-        this.isMouseHover = true;
+        this._isMouseHover = true;
+        if (!this._isSuspended) this.onEnterLogic();
     }
+    onEnterLogic() {}
     onLeave(evt) {
-        this.isMouseHover = false;
-        this.isMouseDown = false;
+        this._isMouseHover = false;
+        this._isMouseDown = false;
+        if (!this._isSuspended) this.onLeaveLogic();
     }
+    onLeaveLogic() {}
     onDown(evt) {
-        this.isMouseDown = true;
+        this._isMouseDown = true;
+        if (!this._isSuspended) this.onDownLogic();
     }
+    onDownLogic() {}
     onUp(evt) {
-        if (this.isMouseDown) this.upFunction(this);
-        this.isMouseDown = false;
+        if (this._isMouseDown && !this._isSuspended) this.onUpLogic();
+        this._isMouseDown = false;
     }
+    onUpLogic() {this.upFunction(this);}
     enable() {
         this._pointerElement.style.cursor = 'pointer';
         this._pointerElement.enable();
@@ -81,37 +94,17 @@ export class UIButton {
         this._pointerElement.style.cursor = 'default';
         this._pointerElement.disable();
     }
+    suspend() {this._isSuspended = true;}
+    unsuspend() {this._isSuspended = false;}
 }
 
 export class Button2State extends UIButton {
     constructor(containerElement, pointerElement=null, upFunction=noop) {
         super(containerElement, pointerElement, upFunction);
-        this.onEnter = this.onEnter.bind(this);
-        this.onLeave = this.onLeave.bind(this);
-        this.onDown = this.onDown.bind(this);
-        this.onUp = this.onUp.bind(this);
-        this.addMouseListeners();
-    }
-    onEnter(evt) {
-        super.onEnter(evt);
-        this.onEnterLogic();
-    }
-    onEnterLogic() {}
-    onLeave(evt) {
-        super.onLeave(evt);
-        this.onLeaveLogic();
     }
     onLeaveLogic() {this.upState();}
-    onDown(evt) {
-        super.onDown(evt);
-        this.onDownLogic();
-    }
     onDownLogic() {this.downState();}
-    onUp(evt) {
-        super.onUp(evt);
-        this.onUpLogic();
-    }
-    onUpLogic() {this.upState();}
+    onUpLogic() {this.upState(); super.onUpLogic();}
     upState() {}
     downState() {}
 }
@@ -121,6 +114,6 @@ export class Button3State extends Button2State {
         super(containerElement, pointerElement, upFunction);
     }
     onEnterLogic() {this.hoverState();}
-    onUpLogic() {this.hoverState();}
-    hoverState() {}
+    onUpLogic() {this.hoverState(); super.onUpLogic();}
+    testState() {if (this._isMouseHover === true) this.onEnterLogic();}
 }

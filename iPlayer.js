@@ -3,8 +3,10 @@ import { UIElement, UIVector } from './UIElement.js';
 import { Button2State } from '../UserInterface_JS/UIButton.js'
 import { Circle, Rectangle, SemicircleBar, ArrowBar, getGradient } from './Primitives.js';
 import { LEFT_TO_RIGHT, RIGHT_TO_LEFT, TOP_TO_BOTTOM, BOTTOM_TO_TOP,
-         UP, DOWN, LEFT, RIGHT, NONE } from '../Utilities_JS/constants.js';
+         UP, DOWN, LEFT, RIGHT, NONE,
+         noop } from '../Utilities_JS/constants.js';
 import { clamp, decimalColor } from '../Utilities_JS/mathUtils.js';
+import { Tween } from '../Utilities_JS/Tween.js';
 export const HIGHLIGHT_HEX = '#ffffff';
 export const OUTLINE_HEX = '#444444';
 export const GRADIENT_TOP_HEX = '#eeeeee';
@@ -22,12 +24,13 @@ export const BAR_SHADOW_ALT = `linear-gradient(#dddddd, ${SHADOW_DOWN_HEX})`;
 export const BAR_RECT_DEFAULT = `linear-gradient(${ICON_UP_TOP_HEX}, ${ICON_UP_BOTTOM_HEX})`;
 export const BAR_RECT_ALT = `linear-gradient(${ICON_DOWN_TOP_HEX}, ${ICON_DOWN_BOTTOM_HEX})`;
 export const GLASS_LIGHT_HEX = '#eaebdc';
+const BORDER_RADIUS = 6;
 
 export class ShadedRect extends Rectangle {
     constructor(options) {
         const {
             width, height,
-            borderRadius = 6,
+            borderRadius = BORDER_RADIUS,
             lightHex = HIGHLIGHT_HEX, darkHex = OUTLINE_HEX,
             gradientTopHex = GRADIENT_TOP_HEX, gradientBottomHex = GRADIENT_BOTTOM_HEX,
             left = 0, top = 0
@@ -77,7 +80,7 @@ class RectRimGroup extends Rectangle {
     constructor(options) {
         const {
             width, height,
-            borderRadius = 6,
+            borderRadius = BORDER_RADIUS,
             rimHex = RIM_HEX,
             darkHex = '#505050',
             gradientBottomHex = RECT_BUTTON_GRADIENT_BOTTOM_HEX,
@@ -438,5 +441,51 @@ export class ShadedArrowBar extends ArrowBar {
     }
     altState() {
         this.gradientArrowBar.colorPolygon(this.altGradient);
+    }
+}
+
+export class TransitionRect extends Rectangle {
+    constructor(options) {
+        const {borderRadius=BORDER_RADIUS, thickness=1, colorHex=OUTLINE_HEX} = options;
+        super({borderRadius});
+        this.assignStyles({
+            border: `${thickness}px solid ${colorHex}`,
+            boxSizing: 'border-box'
+        });
+        this.current = {width:undefined, height:undefined, left:undefined, top:undefined};
+        this.progress = 0;
+    }
+    transitionTo(options) {
+        const {startObject, endObject, duration=100, startProgress=0, onUpdate=noop, onComplete=noop} = options;
+        const startWidth = parseInt(startObject.style.width, 10);
+        const startHeight = parseInt(startObject.style.height, 10);
+        const startLeft = parseInt(startObject.style.left, 10);
+        const startTop = parseInt(startObject.style.top, 10);
+        const endWidth = parseInt(endObject.style.width, 10);
+        const endHeight = parseInt(endObject.style.height, 10);
+        const endLeft = parseInt(endObject.style.left, 10);
+        const endTop = parseInt(endObject.style.top, 10);
+        const updateTransition = () => {
+            const progress = this.progress;
+            const decimalRemaining = 1 - progress;
+            const current = this.current;
+            current.width = startWidth*decimalRemaining + endWidth*progress;
+            current.height = startHeight*decimalRemaining + endHeight*progress;
+            current.left = startLeft*decimalRemaining + endLeft*progress;
+            current.top = startTop*decimalRemaining + endTop*progress;
+            this.assignStyles(current);
+            onUpdate(progress);
+        }
+        const completeTransition = () => {
+            Tween.putInstance(this.tween);
+            this.progress = 0;
+            onComplete();
+        }
+        this.progress = startProgress;
+        this.tween = Tween.getInstance({
+            targetObject: this, targetProperty: 'progress', propertyValue: 1,
+            duration, onUpdate:updateTransition, onComplete:completeTransition
+        });
+        this.tween.animate();
     }
 }
