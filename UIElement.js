@@ -1,26 +1,19 @@
 import { UIButton } from './UIButton.js';
 
 export class UIElement extends EventTarget {
-    static SVGNS = "http://www.w3.org/2000/svg";
     static DIV = 'div';
+    static A = 'a';
+    static IMG = 'img';
+    static SVGNS = "http://www.w3.org/2000/svg";
     static SVG = 'svg';
     static POLYGON = 'polygon';
     static LINEAR_GRADIENT = 'linearGradient';
     static STOP = 'stop';
-    static assignStyles(element, styleObject) {
-        Object.assign(element.style, styleObject);
-    }
-    static assignAttributes(element, attributeObject) {
-        for (const property in attributeObject) {
-            element.setAttribute(property, attributeObject[property]);
-        }
-    }
+    static assignStyles(element, styleObject) {Object.assign(element.style, styleObject);}
+    static assignAttributes(element, attributeObject) {for (const property in attributeObject) {element.setAttribute(property, attributeObject[property]);}}
     static assignDefaultStyles(element, type) {
-        const styleObject = {
-            pointerEvents: 'none',
-            position: 'absolute'
-        };
-        if (type == UIElement.DIV) {
+        const styleObject = {pointerEvents:'none', position:'absolute'};
+        if (type === UIElement.DIV || type === UIElement.A) {
             styleObject.display = 'inline-block';
             styleObject.margin = 0;
             styleObject.padding = 0;
@@ -28,22 +21,21 @@ export class UIElement extends EventTarget {
         UIElement.assignStyles(element, styleObject);
     }
     static parseElementType(elementType) {
-        if (elementType === UIElement.DIV) return document.createElement(UIElement.DIV); //HTMLElement
-        else if (elementType === UIElement.SVG) return document.createElementNS(UIElement.SVGNS, UIElement.SVG); //SVGElement
-        else if (elementType === UIElement.POLYGON) return document.createElementNS(UIElement.SVGNS, UIElement.POLYGON); //SVGElement
-        else if (elementType === UIElement.LINEAR_GRADIENT) return document.createElementNS(UIElement.SVGNS, UIElement.LINEAR_GRADIENT); //SVGElement
-        else if (elementType === UIElement.STOP) return document.createElementNS(UIElement.SVGNS, UIElement.STOP); //SVGElement
+        if (elementType === UIElement.DIV) return document.createElement(elementType); //HTMLDivElement
+        else if (elementType === UIElement.A) return document.createElement(elementType); //HTMLAnchorElement
+        else if (elementType === UIElement.IMG) return document.createElement(elementType); //HTMLImageElement
+        else if (elementType === UIElement.SVG) return document.createElementNS(UIElement.SVGNS, elementType); //SVGElement
+        else if (elementType === UIElement.POLYGON) return document.createElementNS(UIElement.SVGNS, elementType); //SVGElement
+        else if (elementType === UIElement.LINEAR_GRADIENT) return document.createElementNS(UIElement.SVGNS, elementType); //SVGElement
+        else if (elementType === UIElement.STOP) return document.createElementNS(UIElement.SVGNS, elementType); //SVGElement
         else throw new Error(`UIElement.parseElementType: Invalid elementType "${elementType}".`);
     }
-    static parsePxArgument(argument) {
-        return typeof argument === 'number' ? `${argument}px` : argument;
-    }
+    static parsePxArgument(argument) {return typeof argument === 'number' ? `${argument}px` : argument;}
     static parsePxObject(styleObject) {
         const returnObject = {};
         for (const key in styleObject) {
-            if (key === 'width' || key === 'height' || key === 'borderRadius' || key === 'left' || key === 'right' || key === 'top' || key === 'bottom' || key === 'fontSize') {
-                returnObject[key] = UIElement.parsePxArgument(styleObject[key]);
-            } else returnObject[key] = styleObject[key];
+            if (key === 'width' || key === 'height' || key === 'borderRadius' || key === 'left' || key === 'right' || key === 'top' || key === 'bottom' || key === 'fontSize') returnObject[key] = UIElement.parsePxArgument(styleObject[key]);
+            else returnObject[key] = styleObject[key];
         }
         return returnObject;
     }
@@ -59,11 +51,9 @@ export class UIElement extends EventTarget {
     constructor(elementType=UIElement.DIV) {
         super();
         this._element = UIElement.parseElementType(elementType);
-        UIElement.assignDefaultStyles(this._element,elementType);
+        UIElement.assignDefaultStyles(this._element, elementType);
     }
-    get style() {
-        return this._element.style;
-    }
+    get style() {return this._element.style;}
     assignStyles(styleObject) {
         const parsedObject = UIElement.parsePxObject(styleObject);
         UIElement.assignStyles(this, parsedObject);

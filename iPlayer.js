@@ -1,9 +1,8 @@
-import { UIButton } from './UIButton.js';
 import { UIElement, UIVector } from './UIElement.js';
-import { Button2State } from '../UserInterface_JS/UIButton.js'
+import { UIButton, Button2State } from '../UserInterface_JS/UIButton.js'
 import { Circle, Rectangle, SemicircleBar, ArrowBar, getGradient } from './Primitives.js';
 import { LEFT_TO_RIGHT, RIGHT_TO_LEFT, TOP_TO_BOTTOM, BOTTOM_TO_TOP,
-         UP, DOWN, LEFT, RIGHT, NONE,
+         UP, DOWN, LEFT, RIGHT, NONE, BORDER_BOX, CONTENT_BOX,
          noop } from '../Utilities_JS/constants.js';
 import { clamp, decimalColor } from '../Utilities_JS/mathUtils.js';
 import { Tween } from '../Utilities_JS/Tween.js';
@@ -35,44 +34,35 @@ export class ShadedRect extends Rectangle {
             gradientTopHex = GRADIENT_TOP_HEX, gradientBottomHex = GRADIENT_BOTTOM_HEX,
             left = 0, top = 0
         } = options;
-        super({width, height, borderRadius, background:darkHex, left, top});
-        const innerWidth = width - 2;
-        const innerBorderRadius = borderRadius - 1;
-        this.defaultHighlight = {background: `linear-gradient(${lightHex}, ${darkHex})`};
-        this.altHighlight = {background:darkHex};
-        this.highlight = new Rectangle({
-            ...this.defaultHighlight,
-            width: innerWidth,
-            height: height - 2,
-            borderRadius: innerBorderRadius,
-            top: 1, left: 1
-        });
-        this.defaultGradient = {
-            height: height - 3,
-            background: `linear-gradient(${gradientTopHex}, ${gradientBottomHex})`,
-            top: 2
-        };
-        this.altGradient = {
-            height: height - 2.25,
-            background: `linear-gradient(${gradientBottomHex}, ${gradientTopHex})`,
-            top: 1.25
-        };
-        this.gradient = new Rectangle({
-            ...this.defaultGradient,
-            width: innerWidth,
-            borderRadius: innerBorderRadius,
-            left: 1
-        });
-        this.appendChild(this.highlight);
+        const defaultBase = {background: `linear-gradient(${lightHex}, ${darkHex})`};
+        super({...defaultBase, width, height, borderRadius, boxSizing:BORDER_BOX, padding:'1px', border:`1px solid ${darkHex}`, left, top});
+        this.defaultBase = defaultBase;
+        this.defaultGradient = {height:height-3, background:`linear-gradient(${gradientTopHex}, ${gradientBottomHex})`, top:1};
+        this.gradient = new Rectangle({...this.defaultGradient, width:width-2, borderRadius:borderRadius-1});
         this.appendChild(this.gradient);
     }
+}
+export class ShadedRectState extends ShadedRect {
+    constructor(options) {
+        super(options);
+        const {height, darkHex=OUTLINE_HEX, gradientTopHex=GRADIENT_TOP_HEX, gradientBottomHex=GRADIENT_BOTTOM_HEX} = options;
+        this.altBase = {background:darkHex};
+        this.altGradient = {height:height-2.25, background:`linear-gradient(${gradientBottomHex}, ${gradientTopHex})`, top:.25};
+    }
     defaultState() {
-        this.highlight.assignStyles(this.defaultHighlight);
+        this.assignStyles(this.defaultBase);
         this.gradient.assignStyles(this.defaultGradient);
     }
     altState() {
-        this.highlight.assignStyles(this.altHighlight);
+        this.assignStyles(this.altBase);
         this.gradient.assignStyles(this.altGradient);
+    }
+}
+export class ShadedRectMenu extends ShadedRect {
+    constructor(options) {
+        super(options);
+        this.init = noop;
+        this.fini = noop;
     }
 }
 
@@ -87,20 +77,21 @@ class RectRimGroup extends Rectangle {
             left = 0, top = 0
         } = options;
         super({width, height, borderRadius, background:rimHex, left, top:top+1});
-        this.shadedRect = new ShadedRect({width, height, borderRadius, darkHex, gradientBottomHex, top:-1});
-        this.appendChild(this.shadedRect);
+        this.shadedRectState = new ShadedRectState({width, height, borderRadius, darkHex, gradientBottomHex, top:-1});
+        this.appendChild(this.shadedRectState);
     }
-    defaultState() {this.shadedRect.defaultState();}
-    altState() {this.shadedRect.altState();}
+    defaultState() {this.shadedRectState.defaultState();}
+    altState() {this.shadedRectState.altState();}
 }
 
 export class RectButton extends Button2State {
     constructor(options) {
-        const {upFunction, width, height, borderRadius, rimHex, gradientBottomHex, left, top} = options;
+        const {execFunction, width, height, borderRadius, rimHex, gradientBottomHex, left, top} = options;
         const rectRimGroup = new RectRimGroup({width, height, borderRadius, rimHex, gradientBottomHex, left, top});
-        super(rectRimGroup, rectRimGroup.shadedRect.highlight, upFunction);
+        super(rectRimGroup, rectRimGroup.shadedRectState, execFunction);
         this.rectRimGroup = rectRimGroup;
     }
+    get menu() {}
     upState() {this.rectRimGroup.defaultState();}
     downState() {this.rectRimGroup.altState();}
 }
@@ -113,40 +104,21 @@ export class ShadedCircle extends Circle {
             gradientBottomHex = GRADIENT_BOTTOM_HEX,
             left = 0, top = 0
         } = options;
-        super({width, height, background:darkHex, left, top});
-        const innerWidth = width - 2;
-        this.defaultHighlight = {background:`linear-gradient(${lightHex}, ${gradientBottomHex})`};
-        this.altHighlight = {background:darkHex};
-        this.highlight = new Circle({
-            ...this.defaultHighlight,
-            width: innerWidth,
-            height: height - 2,
-            top: 1, left: 1
-        });
-        this.defaultGradient = {
-            height: height - 3,
-            background: `linear-gradient(${lightHex}, ${gradientBottomHex})`,
-            top: 2,
-        };
-        this.altGradient = {
-            height: height - 2.25,
-            background: `linear-gradient(${gradientBottomHex}, ${lightHex})`,
-            top: 1.25,
-        };
-        this.gradient = new Circle({
-            ...this.defaultGradient,
-            width: innerWidth,
-            left: 1
-        });
-        this.appendChild(this.highlight);
+        const defaultBase = {background:`linear-gradient(${lightHex}, ${gradientBottomHex})`};
+        super({...defaultBase, width, height, boxSizing:BORDER_BOX, padding:'1px', border:`1px solid ${darkHex}`, left, top});
+        this.defaultBase = defaultBase;
+        this.altBase = {background:darkHex};
+        this.defaultGradient = {height:height-3, background:`linear-gradient(${lightHex}, ${gradientBottomHex})`, top:1};
+        this.altGradient = {height:height-2.25, background:`linear-gradient(${gradientBottomHex}, ${lightHex})`, top:.25};
+        this.gradient = new Circle({...this.defaultGradient, width:width-2});
         this.appendChild(this.gradient);
     }
     defaultState() {
-        this.highlight.assignStyles(this.defaultHighlight);
+        this.assignStyles(this.defaultBase);
         this.gradient.assignStyles(this.defaultGradient);
     }
     altState() {
-        this.highlight.assignStyles(this.altHighlight);
+        this.assignStyles(this.altBase);
         this.gradient.assignStyles(this.altGradient);
     }
 }
@@ -171,7 +143,7 @@ class CircleRimGroup extends Circle {
 export class CircleButton extends Button2State {
     constructor(options) {
         const {
-            upFunction,
+            execFunction,
             width, height,
             rimHex = '#cccccc',
             darkHex, lightHex,
@@ -179,7 +151,7 @@ export class CircleButton extends Button2State {
             left = 0, top = 0
         } = options;
         const circleRimGroup = new CircleRimGroup({width, height, rimHex, darkHex, lightHex, gradientBottomHex, left, top});
-        super(circleRimGroup, circleRimGroup.shadedCircle.highlight, upFunction);
+        super(circleRimGroup, circleRimGroup.shadedCircle, execFunction);
         this.circleRimGroup = circleRimGroup;
     }
     upState() {this.circleRimGroup.defaultState();}
@@ -203,8 +175,8 @@ export class GlassPanel extends Rectangle {
                 this.normalColors.dark = '#9a9bb8';
                 this.lowColors.light = '#61617f';
                 this.lowColors.dark = '#575874';
-                this.highColors.light = '#BCBCD3';
-                this.highColors.dark = '#A8AAC3';
+                this.highColors.light = '#bcbcd3';
+                this.highColors.dark = '#a8aac3';
                 break;
             default:
                 this.normalColors.light = GLASS_LIGHT_HEX;
@@ -214,28 +186,10 @@ export class GlassPanel extends Rectangle {
         this.normalColors.gradient = `linear-gradient(${this.normalColors.dark}, ${this.normalColors.light})`;
         this.lowColors.gradient = `linear-gradient(${this.lowColors.dark}, ${this.lowColors.light})`;
         this.highColors.gradient = `linear-gradient(${this.highColors.dark}, ${this.highColors.light})`;
-        this.outline = new Rectangle({width, height, borderRadius, top:-1});
-        this.shadow = new Rectangle({
-            width: width - 2,
-            height: height - 2,
-            borderRadius: borderRadius - 1,
-            left: 1
-        });
-        this.light = new Rectangle({
-            width: width - 4,
-            height: height - 3,
-            borderRadius: borderRadius - 2,
-            top: 1, left: 2
-        });
-        const gradientHeight = height * 0.45;
-        this.gradient = new Rectangle({
-            width: width - 4,
-            height: gradientHeight,
-            borderRadius: `0px 0px ${borderRadius}px ${borderRadius}px`,
-            top: height - gradientHeight - 2,
-            left: 2
-        });
-        this.appendChild(this.outline);
+        this.shadow = new Rectangle({width, height, borderRadius:borderRadius, boxSizing:BORDER_BOX, padding:'1px', top:-1});
+        this.light = new Rectangle({width:width-4, height:height-3, borderRadius:borderRadius-2, top:1, left:2});
+        const gradientH = height * 0.45;
+        this.gradient = new Rectangle({width:width-4, height:gradientH, borderRadius:`0px 0px ${borderRadius}px ${borderRadius}px`, top:height-gradientH-2, left:2});
         this.appendChild(this.shadow);
         this.appendChild(this.light);
         this.appendChild(this.gradient);
@@ -250,7 +204,7 @@ export class GlassPanel extends Rectangle {
             default: throw new Error(`GlassPanel.setLevel: Invald level "${level}".`);
         }
         this.style.background = colorObject.rim;
-        this.outline.style.background = colorObject.outline;
+        this.shadow.style.border = `1px solid ${colorObject.outline}`;
         this.shadow.style.background = colorObject.dark;
         this.light.style.background = colorObject.light;
         this.gradient.style.background = colorObject.gradient;
@@ -259,103 +213,57 @@ export class GlassPanel extends Rectangle {
 
 export class ProgressBar extends SemicircleBar {
     constructor(options) {
-        const {width, height, containerHex, progressHex} = options;
-        const superOptions = {width, height, background:containerHex};
-        super(superOptions);
+        const {width, height, containerHex, progressHex, minDecimal=0, maxDecimal=1, left=0, top=0} = options;
+        super({width, height, background:containerHex, left, top});
+        this.minDecimal = minDecimal;
+        this.maxDecimal = maxDecimal;
+        this.rangeDecimal = maxDecimal - minDecimal;
         this.style.overflow = 'hidden';
         this.progressRect = new Rectangle({width:'0%', height:'100%', background:progressHex});
         this.appendChild(this.progressRect);
     }
-    setProgress(percent) {
-        percent = clamp(percent, 0, 100);
+    setProgress(decimal) {
+        const percent = (this.minDecimal + clamp(decimal, 0, 1)*this.rangeDecimal) * 100;
         this.progressRect.style.width = `${percent}%`
     }
 }
 export class DoubleProgressBar extends SemicircleBar {
     constructor(options) {
-        const {width, height, containerHex, rearProgressHex, frontProgressHex, top=0, left=0} = options;
-        const superOptions = {width, height, background:containerHex, top, left};
+        const {width, height, boxSizing=CONTENT_BOX, border=NONE, containerHex, rearProgressHex, frontProgressHex, top=0, left=0} = options;
+        const superOptions = {width, height, background:containerHex, boxSizing, border, top, left};
         super(superOptions);
         this.style.overflow = 'hidden';
-        const progressBarOptions = {width, height, containerHex:rearProgressHex, progressHex:frontProgressHex}
-        this.progressBar = new ProgressBar(progressBarOptions);
+        const offset = parseFloat(border);
+        const offsetX2 = offset * 2;
+        this.progressBar = new ProgressBar({
+            width: width - offsetX2, height: height - offsetX2,
+            containerHex: rearProgressHex, progressHex: frontProgressHex
+        });
         this.appendChild(this.progressBar);
         this.setProgressRear(0);
     }
-    setProgressRear(percent) {
-        percent = clamp(percent, 0, 100);
+    setProgressRear(decimal) {
+        const percent = clamp(decimal, 0, 1) * 100;
         this.progressBar.style.transform = `translateX(${percent - 100}%)`;
     }
-    setProgressFront(percent) {
-        percent = clamp(percent, 0, 100);
-        this.progressBar.setProgress(percent);
+    setProgressFront(decimal) {
+        this.progressBar.setProgress(decimal);
     }
 }
 
-/*export class Slider extends UIElement {
+export class DoubleProgressSeekBar extends SemicircleBar {
     constructor(options) {
-        super();
-        const {width, height} = options;
-        const rimOptions = { width, height, colorHex: '#bbbbbb' };
-        const darkOptions = { width, height, colorHex: '#333333' };
-        const progressOptions = { width: width - 2, height: height - 2, containerHex: GLASS_LIGHT_HEX, progressHex: '#666666' };
-        const rim = new SemicircleBar(rimOptions);
-        UIElement.assignStyles(rim, {
-            position: 'absolute',
-            top: '1px',
-            left: '0px'
-        });
-        const dark = new SemicircleBar(darkOptions);
-        UIElement.assignStyles(dark, {
-            position: 'absolute',
-            top: '0px',
-            left: '0px'
-        });
-        const progressBar = new ProgressBar(progressOptions);
-        UIElement.assignStyles(progressBar, {
-            position: 'absolute',
-            top: '1px',
-            left: '1px'
-        });
-        const handle = document.createElement('div');
-        UIElement.assignStyles(handle, {
-            width: `${height}px`,
-            height: `${height}px`,
-            borderRadius: '50%',
-            background: `radial-gradient(circle at center, #c8c8c8, #cccccc, #dddddd, #ffffff)`,
-            boxShadow: '0px 1px 1px rgba(0, 0, 0, 0.5)',
-            position: 'absolute',
-            top: '0px',
-            left: '0px'
-        });
-        this.appendChild(rim);
-        this.appendChild(dark);
-        this.appendChild(progressBar);
-        this.appendChild(handle);
-    }
-}*/
-export class DoubleProgressSeekBar extends UIElement {
-    constructor(options) {
-        super();
         const {width, height, top=0, left=0} = options;
-        const rimOptions = {width, height, background: '#bbbbbb', top: 1};
-        const rim = new SemicircleBar(rimOptions);
-        const darkOptions = {width, height, background: '#333333'};
-        const dark = new SemicircleBar(darkOptions);
-        const doubleProgressOptions = {
-            width: width - 2,
-            height: height - 2,
+        super({width, height, background: '#cccccc', left, top:top+1});
+        this.doubleProgressBar = new DoubleProgressBar({
+            width, height,
             containerHex: '#151c23',
             rearProgressHex: GLASS_LIGHT_HEX,
             frontProgressHex: '#666666',
-            top: 1,
-            left: 1
-        }
-        this.doubleProgressBar = new DoubleProgressBar(doubleProgressOptions);
-        this.appendChild(rim);
-        this.appendChild(dark);
+            boxSizing: BORDER_BOX, padding: '1px', border: '1px solid #333333',
+            top: -1
+        });
         this.appendChild(this.doubleProgressBar);
-        this.assignStyles({left, top});
     }
     set rearProgress(percent) {this.doubleProgressBar.setProgressRear(percent);}
     set frontProgress(percent) {this.doubleProgressBar.setProgressFront(percent);}
@@ -487,5 +395,70 @@ export class TransitionRect extends Rectangle {
             duration, onUpdate:updateTransition, onComplete:completeTransition
         });
         this.tween.animate();
+    }
+}
+
+export class Slider extends SemicircleBar {
+    constructor(options) {
+        const {width, height, containerHex='#bcbcd3', progressHex='#6664BE', thumbDiameter=16, setFunction, scaleValue=1, left=0, top=0} = options;
+        super({width, height, background:RIM_HEX, left, top:top+1});
+        this.barWidth = width;
+        this.thumbMax = width - thumbDiameter;
+        this.setFunction = setFunction;
+        this.scaleValue = scaleValue;
+        const minDecimal = thumbDiameter / this.barWidth / 2;
+        this.progressBar = new ProgressBar({width, height, containerHex, progressHex, minDecimal, maxDecimal:1-minDecimal, top:-1});
+        this.barButton = new UIButton(this.progressBar, null, this.onBarDown);
+        this.barButton.enable();
+        this.thumb = new Circle({
+            width: thumbDiameter, height: thumbDiameter,
+            background: `radial-gradient(circle at center, #c8c8c8, #cccccc, #dddddd, #000000)`,
+            top: (height-thumbDiameter)/2 - 1
+        });
+        this.thumb.style.boxShadow =  '0px 1px 1px rgba(0, 0, 0, .5)';
+        this.thumb.style.cursor = 'pointer';
+        this.thumb.enable();
+        this.appendChild(this.progressBar);
+        this.appendChild(this.thumb);
+    }
+    addListeners() {
+        this.barButton.addMouseListeners();
+        this.thumb.addInteractiveListener(UIButton.MOUSE_DOWN, this.onThumbDown);
+    }
+    removeListeners() {
+        this.barButton.removeMouseListeners();
+        this.thumb.removeInteractiveListener(UIButton.MOUSE_DOWN, this.onThumbDown);
+    }
+    updateBar(decimal) {this.progressBar.setProgress(decimal);}
+    updateThumb(decimal) {this.thumb.style.left = `${this.thumbMax*decimal}px`;}
+    onBarDown = (evt) => {
+        this.updateProgressByDecimal(evt.offsetX/this.barWidth, true);
+    }
+    onThumbDown = (evt) => {
+        document.addEventListener(UIButton.MOUSE_MOVE, this.onThumbMove);
+        document.addEventListener(UIButton.MOUSE_UP, this.onThumbUp);
+        this.dragStartX = evt.clientX;
+        this.dragStartLeft = this.thumb._element.offsetLeft;
+    }
+    onThumbMove = (evt) => {
+        const delta = (evt.clientX - this.dragStartX) / this.scaleValue;
+        const newLeft = clamp(this.dragStartLeft+delta, 0, this.thumbMax);
+        this.updateProgressByThumb(newLeft, true);
+    }
+    onThumbUp = () => {
+        document.removeEventListener(UIButton.MOUSE_MOVE, this.onThumbMove);
+        document.removeEventListener(UIButton.MOUSE_UP, this.onThumbUp);
+    }
+    updateProgressByThumb(left, setProgress=false) {
+        const decimal = clamp(left/this.thumbMax, 0, 1);
+        this.updateBar(decimal);
+        this.updateThumb(decimal);
+        if (setProgress) {this.setFunction(decimal);}
+    }
+    updateProgressByDecimal(decimal, setProgress=false) {
+        decimal = clamp(decimal, 0, 1);
+        this.updateBar(decimal);
+        this.updateThumb(decimal);
+        if (setProgress) {this.setFunction(decimal);}
     }
 }

@@ -1,16 +1,22 @@
 import { UIElement } from './UIElement.js';
+import { BORDER_BOX } from '../Utilities_JS/constants.js';
 
 export class TextField extends UIElement {
+    static AUTO = 'auto';
+    static BREAK_WORD = 'break-word';
+    static NORMAL = 'normal';
     constructor(options) {
         super();
         const {
             text = '',
-            width = 'auto',
-            height = 'auto',
+            width = TextField.AUTO,
+            height = TextField.AUTO,
             fontFamily = 'Arial, sans-serif',
-            fontWeight = 'normal', // 'bold' , 'bolder', 'lighter'
+            fontWeight = TextField.NORMAL, // 'bold' , 'bolder', 'lighter'
+            fontStyle = TextField.NORMAL, // 'normal', 'italic', 'oblique', 'inherit'
             fontSize = '16px',
             color = '#000000',
+            textShadow = 'none',
             textAlign = 'left', // 'center', 'right', 'justify'
             whiteSpace = 'nowrap', // 'normal'
             left = '',
@@ -24,8 +30,10 @@ export class TextField extends UIElement {
             height,
             fontFamily,
             fontWeight,
+            fontStyle,
             fontSize,
             color,
+            textShadow,
             textAlign,
             whiteSpace,
             left,
@@ -37,8 +45,8 @@ export class TextField extends UIElement {
             overflow: 'hidden'
             //, lineHeight,
             //letterSpacing,
-            //,border: '2px solid red',
-            //boxSizing: 'border-box'
+            //,border: '2px dotted red'
+            //,boxSizing: BORDER_BOX
         });
         if (text !== '') this.text = text;
     }

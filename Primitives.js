@@ -1,6 +1,7 @@
 import { UIElement, UIVector } from './UIElement.js';
 import { degreesToRadians } from '../Utilities_JS/mathUtils.js';
-import { UP, DOWN, LEFT, RIGHT, LEFT_TO_RIGHT, RIGHT_TO_LEFT, TOP_TO_BOTTOM, BOTTOM_TO_TOP } from '../Utilities_JS/constants.js';
+import { UP, DOWN, LEFT, RIGHT, LEFT_TO_RIGHT, RIGHT_TO_LEFT, TOP_TO_BOTTOM, BOTTOM_TO_TOP,
+         NONE, CONTENT_BOX } from '../Utilities_JS/constants.js';
 export function getGradient(id, colors, direction) {
     const parseDirection = (gradient, direction)=> {
         let x1;
@@ -69,24 +70,24 @@ export function getGradient(id, colors, direction) {
 export class Rectangle extends UIElement {
     constructor(options) {
         super();
-        const {width, height, background, borderRadius=0, left=0, top=0} = options;
-        this.assignStyles({width, height, borderRadius, background, left, top});
+        const {width, height, background, borderRadius=0, boxSizing=CONTENT_BOX, border=NONE, left=0, top=0} = options;
+        this.assignStyles({width, height, background, borderRadius, boxSizing, border, left, top});
     }
 }
 
 export class Circle extends UIElement {
     constructor(options) {
         super();
-        const {width, height, background, left = 0, top = 0} = options;
-        this.assignStyles({width, height, borderRadius: '50%', background, left, top});
+        const {width, height, background, boxSizing=CONTENT_BOX, border=NONE, left=0, top=0} = options;
+        this.assignStyles({width, height, borderRadius:'50%', background, boxSizing, border, left, top});
     }
 }
 
 export class SemicircleBar extends UIElement {
     constructor(options) {
         super();
-        const {width, height, background, left=0, top=0} = options;
-        this.assignStyles({width, height, background, borderRadius:height/2, left, top});
+        const {width, height, background, boxSizing=CONTENT_BOX, border=NONE, left=0, top=0} = options;
+        this.assignStyles({width, height, borderRadius:height/2, background, boxSizing, border, left, top});
     }
 }
 
