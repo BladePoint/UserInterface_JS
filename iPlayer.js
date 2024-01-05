@@ -1,5 +1,5 @@
 import { UIElement, UIVector } from './UIElement.js';
-import { UIButton, Button2State } from '../UserInterface_JS/UIButton.js'
+import { UIButton, UIButtonDrag, Button2State } from '../UserInterface_JS/UIButton.js'
 import { Circle, Rectangle, SemicircleBar, ArrowBar, getGradient } from './Primitives.js';
 import { LEFT_TO_RIGHT, RIGHT_TO_LEFT, TOP_TO_BOTTOM, BOTTOM_TO_TOP,
          UP, DOWN, LEFT, RIGHT, NONE, BORDER_BOX, CONTENT_BOX,
@@ -23,6 +23,7 @@ export const BAR_SHADOW_ALT = `linear-gradient(#dddddd, ${SHADOW_DOWN_HEX})`;
 export const BAR_RECT_DEFAULT = `linear-gradient(${ICON_UP_TOP_HEX}, ${ICON_UP_BOTTOM_HEX})`;
 export const BAR_RECT_ALT = `linear-gradient(${ICON_DOWN_TOP_HEX}, ${ICON_DOWN_BOTTOM_HEX})`;
 export const GLASS_LIGHT_HEX = '#eaebdc';
+export const ALT_DELTA = .25;
 const BORDER_RADIUS = 6;
 
 export class ShadedRect extends Rectangle {
@@ -32,31 +33,28 @@ export class ShadedRect extends Rectangle {
             borderRadius = BORDER_RADIUS,
             lightHex = HIGHLIGHT_HEX, darkHex = OUTLINE_HEX,
             gradientTopHex = GRADIENT_TOP_HEX, gradientBottomHex = GRADIENT_BOTTOM_HEX,
+            boxShadow = '',
             left = 0, top = 0
         } = options;
-        const defaultBase = {background: `linear-gradient(${lightHex}, ${darkHex})`};
-        super({...defaultBase, width, height, borderRadius, boxSizing:BORDER_BOX, padding:'1px', border:`1px solid ${darkHex}`, left, top});
-        this.defaultBase = defaultBase;
-        this.defaultGradient = {height:height-3, background:`linear-gradient(${gradientTopHex}, ${gradientBottomHex})`, top:1};
-        this.gradient = new Rectangle({...this.defaultGradient, width:width-2, borderRadius:borderRadius-1});
-        this.appendChild(this.gradient);
+        const defaultStyle = {
+            background:`linear-gradient(${gradientTopHex}, ${gradientBottomHex})`,
+            boxShadow: `${boxShadow}inset 0 1px 0 ${lightHex}`
+        };
+        super({...defaultStyle, width, height, borderRadius, boxSizing:BORDER_BOX, border:`1px solid ${darkHex}`, left, top});
+        this.defaultStyle = defaultStyle;
     }
 }
 export class ShadedRectState extends ShadedRect {
     constructor(options) {
         super(options);
-        const {height, darkHex=OUTLINE_HEX, gradientTopHex=GRADIENT_TOP_HEX, gradientBottomHex=GRADIENT_BOTTOM_HEX} = options;
-        this.altBase = {background:darkHex};
-        this.altGradient = {height:height-2.25, background:`linear-gradient(${gradientBottomHex}, ${gradientTopHex})`, top:.25};
+        const {darkHex=OUTLINE_HEX, gradientTopHex=GRADIENT_TOP_HEX, gradientBottomHex=GRADIENT_BOTTOM_HEX, boxShadow=''} = options;
+        this.altStyle = {
+            background:`linear-gradient(${gradientBottomHex}, ${gradientTopHex})`,
+            boxShadow: `${boxShadow}inset 0 ${ALT_DELTA}px 0 ${darkHex}`
+        };
     }
-    defaultState() {
-        this.assignStyles(this.defaultBase);
-        this.gradient.assignStyles(this.defaultGradient);
-    }
-    altState() {
-        this.assignStyles(this.altBase);
-        this.gradient.assignStyles(this.altGradient);
-    }
+    defaultState() {this.assignStyles(this.defaultStyle);}
+    altState() {this.assignStyles(this.altStyle);}
 }
 export class ShadedRectMenu extends ShadedRect {
     constructor(options) {
@@ -66,34 +64,30 @@ export class ShadedRectMenu extends ShadedRect {
     }
 }
 
-class RectRimGroup extends Rectangle {
+class ShadedRectStateRim extends ShadedRectState {
     constructor(options) {
         const {
             width, height,
             borderRadius = BORDER_RADIUS,
+            lightHex = HIGHLIGHT_HEX, darkHex = '#505050',
+            gradientTopHex = GRADIENT_TOP_HEX, gradientBottomHex = RECT_BUTTON_GRADIENT_BOTTOM_HEX,
             rimHex = RIM_HEX,
-            darkHex = '#505050',
-            gradientBottomHex = RECT_BUTTON_GRADIENT_BOTTOM_HEX,
             left = 0, top = 0
         } = options;
-        super({width, height, borderRadius, background:rimHex, left, top:top+1});
-        this.shadedRectState = new ShadedRectState({width, height, borderRadius, darkHex, gradientBottomHex, top:-1});
-        this.appendChild(this.shadedRectState);
+        super({width, height, borderRadius, lightHex, darkHex, gradientTopHex, gradientBottomHex, boxShadow:`0 1px 0 ${rimHex}, `, left, top});
     }
-    defaultState() {this.shadedRectState.defaultState();}
-    altState() {this.shadedRectState.altState();}
 }
 
 export class RectButton extends Button2State {
     constructor(options) {
         const {execFunction, width, height, borderRadius, rimHex, gradientBottomHex, left, top} = options;
-        const rectRimGroup = new RectRimGroup({width, height, borderRadius, rimHex, gradientBottomHex, left, top});
-        super(rectRimGroup, rectRimGroup.shadedRectState, execFunction);
-        this.rectRimGroup = rectRimGroup;
+        const shadedRectStateRim = new ShadedRectStateRim({width, height, borderRadius, rimHex, gradientBottomHex, left, top});
+        super(shadedRectStateRim, null, execFunction);
+        this.shadedRectStateRim = shadedRectStateRim;
     }
     get menu() {}
-    upState() {this.rectRimGroup.defaultState();}
-    downState() {this.rectRimGroup.altState();}
+    upState() {this.shadedRectStateRim.defaultState();}
+    downState() {this.shadedRectStateRim.altState();}
 }
 
 export class ShadedCircle extends Circle {
@@ -102,42 +96,42 @@ export class ShadedCircle extends Circle {
             width, height,
             darkHex = OUTLINE_HEX, lightHex = HIGHLIGHT_HEX,
             gradientBottomHex = GRADIENT_BOTTOM_HEX,
+            boxShadow = '',
             left = 0, top = 0
         } = options;
-        const defaultBase = {background:`linear-gradient(${lightHex}, ${gradientBottomHex})`};
-        super({...defaultBase, width, height, boxSizing:BORDER_BOX, padding:'1px', border:`1px solid ${darkHex}`, left, top});
-        this.defaultBase = defaultBase;
-        this.altBase = {background:darkHex};
-        this.defaultGradient = {height:height-3, background:`linear-gradient(${lightHex}, ${gradientBottomHex})`, top:1};
-        this.altGradient = {height:height-2.25, background:`linear-gradient(${gradientBottomHex}, ${lightHex})`, top:.25};
-        this.gradient = new Circle({...this.defaultGradient, width:width-2});
-        this.appendChild(this.gradient);
-    }
-    defaultState() {
-        this.assignStyles(this.defaultBase);
-        this.gradient.assignStyles(this.defaultGradient);
-    }
-    altState() {
-        this.assignStyles(this.altBase);
-        this.gradient.assignStyles(this.altGradient);
+        const defaultStyle = {
+            background:`linear-gradient(${lightHex}, ${gradientBottomHex})`,
+            boxShadow: `${boxShadow}inset 0 1px 0 ${lightHex}`
+        };
+        super({...defaultStyle, width, height, boxSizing:BORDER_BOX, border:`1px solid ${darkHex}`, left, top});
+        this.defaultStyle = defaultStyle;
     }
 }
 
-class CircleRimGroup extends Circle {
+export class ShadedCircleState extends ShadedCircle {
+    constructor(options) {
+        super(options);
+        const {lightHex=HIGHLIGHT_HEX, darkHex=OUTLINE_HEX, gradientBottomHex=GRADIENT_BOTTOM_HEX, boxShadow=''} = options;
+        this.altStyle = {
+            background:`linear-gradient(${gradientBottomHex}, ${lightHex})`,
+            boxShadow: `${boxShadow}inset 0 ${ALT_DELTA}px 0 ${darkHex}`
+        };
+    }
+    defaultState() {this.assignStyles(this.defaultStyle);}
+    altState() {this.assignStyles(this.altStyle);}
+}
+
+class ShadedCircleStateRim extends ShadedCircleState {
     constructor(options) {
         const {
             width, height,
-            rimHex,
             darkHex, lightHex,
             gradientBottomHex,
+            rimHex,
             left = 0, top = 0
         } = options;
-        super({width, height, background:rimHex, left, top:top+1});
-        this.shadedCircle = new ShadedCircle({width, height, darkHex, lightHex, gradientBottomHex, top:-1});
-        this.appendChild(this.shadedCircle);
+        super({width, height, darkHex, lightHex, gradientBottomHex, boxShadow:`0 1px 0 ${rimHex}, `, left, top});
     }
-    defaultState() {this.shadedCircle.defaultState();}
-    altState() {this.shadedCircle.altState();}
 }
 
 export class CircleButton extends Button2State {
@@ -146,16 +140,16 @@ export class CircleButton extends Button2State {
             execFunction,
             width, height,
             rimHex = '#cccccc',
-            darkHex, lightHex,
+            darkHex = '#505050', lightHex,
             gradientBottomHex = '#999999',
             left = 0, top = 0
         } = options;
-        const circleRimGroup = new CircleRimGroup({width, height, rimHex, darkHex, lightHex, gradientBottomHex, left, top});
-        super(circleRimGroup, circleRimGroup.shadedCircle, execFunction);
-        this.circleRimGroup = circleRimGroup;
+        const shadedCircleStateRim = new ShadedCircleStateRim({width, height, rimHex, darkHex, lightHex, gradientBottomHex, left, top});
+        super(shadedCircleStateRim, null, execFunction);
+        this.shadedCircleStateRim = shadedCircleStateRim;
     }
-    upState() {this.circleRimGroup.defaultState();}
-    downState() {this.circleRimGroup.altState();}
+    upState() {this.shadedCircleStateRim.defaultState();}
+    downState() {this.shadedCircleStateRim.altState();}
 }
 
 export class GlassPanel extends Rectangle {
@@ -164,10 +158,13 @@ export class GlassPanel extends Rectangle {
     static LOW = 'low';
     static HIGH = 'high';
     constructor(options) {
-        const {width, height, colorString, rimHex=RIM_HEX, level=GlassPanel.NORMAL, borderRadius=4, left=0, top=0} = options;
-        super({width, height, borderRadius, left, top:top+1});
+        const {
+            width, height, borderRadius=4, colorString, rimHex=RIM_HEX, level=GlassPanel.NORMAL,
+            fontWeight='normal', fontSize=16, fontColor='#000000', textTop=0,
+            left=0, top=0} = options;
+        super({width, height, borderRadius, boxSizing:BORDER_BOX, left, top});
         this.normalColors = {rim:rimHex, outline:OUTLINE_HEX, light:undefined, dark:undefined, gradient:undefined};
-        this.lowColors = {rim:decimalColor(rimHex, .75), outline:OUTLINE_HEX, light:undefined, dark:undefined, gradient:undefined};
+        this.lowColors = {rim:decimalColor(rimHex, .6), outline:OUTLINE_HEX, light:undefined, dark:undefined, gradient:undefined};
         this.highColors = {rim:HIGHLIGHT_HEX, outline:OUTLINE_HEX, light:undefined, dark:undefined, gradient:undefined};
         switch (colorString) {
             case GlassPanel.PURPLE:
@@ -186,15 +183,23 @@ export class GlassPanel extends Rectangle {
         this.normalColors.gradient = `linear-gradient(${this.normalColors.dark}, ${this.normalColors.light})`;
         this.lowColors.gradient = `linear-gradient(${this.lowColors.dark}, ${this.lowColors.light})`;
         this.highColors.gradient = `linear-gradient(${this.highColors.dark}, ${this.highColors.light})`;
-        this.shadow = new Rectangle({width, height, borderRadius:borderRadius, boxSizing:BORDER_BOX, padding:'1px', top:-1});
-        this.light = new Rectangle({width:width-4, height:height-3, borderRadius:borderRadius-2, top:1, left:2});
         const gradientH = height * 0.45;
-        this.gradient = new Rectangle({width:width-4, height:gradientH, borderRadius:`0px 0px ${borderRadius}px ${borderRadius}px`, top:height-gradientH-2, left:2});
-        this.appendChild(this.shadow);
-        this.appendChild(this.light);
+        this.gradient = new Rectangle({width:width-4, height:gradientH, borderRadius:`0px 0px ${borderRadius}px ${borderRadius}px`, top:height-gradientH-2, left:1});
         this.appendChild(this.gradient);
         this.setLevel(level);
+        this.textSpan = new UIElement(UIElement.SPAN);
+        this.gradient.appendChild(this.textSpan);
+        this.textNode = document.createTextNode('');
+        this.textSpan.appendChild(this.textNode);
+        this.textSpan.assignStyles({
+            width: '100%',
+            fontFamily: 'Consolas, monospace', fontSize, color: fontColor, fontWeight,
+            textAlign: 'center', whiteSpace: 'nowrap', userSelect: 'none', overflow: 'hidden',
+            top: textTop
+        });
     }
+    set text(value) {this.textNode.nodeValue = value;}
+    get text() {return this.textNode.nodeValue;}
     setLevel(level) {
         let colorObject;
         switch (level) {
@@ -203,18 +208,19 @@ export class GlassPanel extends Rectangle {
             case GlassPanel.HIGH: colorObject = this.highColors; break;
             default: throw new Error(`GlassPanel.setLevel: Invald level "${level}".`);
         }
-        this.style.background = colorObject.rim;
-        this.shadow.style.border = `1px solid ${colorObject.outline}`;
-        this.shadow.style.background = colorObject.dark;
-        this.light.style.background = colorObject.light;
+        this.assignStyles({
+            background: colorObject.light,
+            border: `1px solid ${colorObject.outline}`,
+            boxShadow: `0 1px 0 ${colorObject.rim}, inset 0 1px 0px 0px ${colorObject.dark}, inset 1px 0px 0px 0px ${colorObject.dark}, inset -1px 0px 0px 0px ${colorObject.dark}`
+        });
         this.gradient.style.background = colorObject.gradient;
     }
 }
 
 export class ProgressBar extends SemicircleBar {
     constructor(options) {
-        const {width, height, containerHex, progressHex, minDecimal=0, maxDecimal=1, left=0, top=0} = options;
-        super({width, height, background:containerHex, left, top});
+        const {width, height, containerHex, progressHex, minDecimal=0, maxDecimal=1, boxSizing=CONTENT_BOX, border=NONE, boxShadow=NONE, left=0, top=0} = options;
+        super({width, height, background:containerHex, boxSizing, border, boxShadow, left, top});
         this.minDecimal = minDecimal;
         this.maxDecimal = maxDecimal;
         this.rangeDecimal = maxDecimal - minDecimal;
@@ -226,47 +232,54 @@ export class ProgressBar extends SemicircleBar {
         const percent = (this.minDecimal + clamp(decimal, 0, 1)*this.rangeDecimal) * 100;
         this.progressRect.style.width = `${percent}%`
     }
+    setContainerHex(colorHex) {this.style.background = colorHex;}
+    setProgressHex(colorHex) {this.progressRect.style.background = colorHex;}
 }
-export class DoubleProgressBar extends SemicircleBar {
+export class DoubleProgressBar extends ProgressBar {
     constructor(options) {
-        const {width, height, boxSizing=CONTENT_BOX, border=NONE, containerHex, rearProgressHex, frontProgressHex, top=0, left=0} = options;
-        const superOptions = {width, height, background:containerHex, boxSizing, border, top, left};
+        const {width, height, boxSizing=CONTENT_BOX, border=NONE, containerHex, rearProgressHex, frontProgressHex, boxShadow=NONE, top=0, left=0} = options;
+        const superOptions = {width, height, containerHex, progressHex:rearProgressHex, boxSizing, border, boxShadow, top, left};
         super(superOptions);
-        this.style.overflow = 'hidden';
-        const offset = parseFloat(border);
-        const offsetX2 = offset * 2;
-        this.progressBar = new ProgressBar({
-            width: width - offsetX2, height: height - offsetX2,
-            containerHex: rearProgressHex, progressHex: frontProgressHex
-        });
-        this.appendChild(this.progressBar);
+        this.containerHex = containerHex;
+        this.rearProgressHex = rearProgressHex;
+        this.frontProgressHex = frontProgressHex;
         this.setProgressRear(0);
+        this.isFront = false;
     }
     setProgressRear(decimal) {
-        const percent = clamp(decimal, 0, 1) * 100;
-        this.progressBar.style.transform = `translateX(${percent - 100}%)`;
+        if (this.isFront) {
+            this.setContainerHex(this.containerHex);
+            this.setProgressHex(this.rearProgressHex);
+            this.isFront = false;
+        }
+        this.setProgress(decimal);
     }
     setProgressFront(decimal) {
-        this.progressBar.setProgress(decimal);
+        if (!this.isFront) {
+            this.setContainerHex(this.rearProgressHex);
+            this.setProgressHex(this.frontProgressHex);
+            this.isFront = true;
+        }
+        this.setProgress(decimal);
     }
 }
 
-export class DoubleProgressSeekBar extends SemicircleBar {
+export class DoubleProgressSeekBar extends DoubleProgressBar {
     constructor(options) {
-        const {width, height, top=0, left=0} = options;
-        super({width, height, background: '#cccccc', left, top:top+1});
-        this.doubleProgressBar = new DoubleProgressBar({
+        const {
+            width, height, rimHex = '#cccccc',
+            containerHex = '#151c23', rearProgressHex = GLASS_LIGHT_HEX, frontProgressHex = '#666666',
+            boxSizing = BORDER_BOX, border = '1px solid #333333',
+            top = 0, left = 0
+        } = options;
+        super({
             width, height,
-            containerHex: '#151c23',
-            rearProgressHex: GLASS_LIGHT_HEX,
-            frontProgressHex: '#666666',
-            boxSizing: BORDER_BOX, padding: '1px', border: '1px solid #333333',
-            top: -1
+            containerHex, rearProgressHex, frontProgressHex,
+            boxSizing, border,
+            boxShadow: `0 1px 0 ${rimHex}`,
+            left, top
         });
-        this.appendChild(this.doubleProgressBar);
     }
-    set rearProgress(percent) {this.doubleProgressBar.setProgressRear(percent);}
-    set frontProgress(percent) {this.doubleProgressBar.setProgressFront(percent);}
 }
 
 export class TriangleShadow extends UIVector {
@@ -329,6 +342,31 @@ export class ShadedArrowBar extends ArrowBar {
             darkHex = OUTLINE_HEX, altTopHex = GRADIENT_TOP_HEX, altBottomHex = GRADIENT_BOTTOM_HEX,
             left = 0, top = 0
         } = options;
+        const darkenDecimal = .5;
+        const defaultTopHex = decimalColor(altTopHex, darkenDecimal);
+        const defaultBottomHex = decimalColor(altBottomHex, darkenDecimal);
+        const defaultStyle = getGradient('defaultGradient', [defaultTopHex, defaultBottomHex], TOP_TO_BOTTOM);
+        super({
+            width: width-2,
+            height: height-2,
+            color: defaultStyle,
+            left: left + 1,
+            top: top + 1
+        });
+        this.defaultStyle = defaultStyle;
+        this.altStyle = getGradient('altGradient', [altTopHex, altBottomHex], TOP_TO_BOTTOM);
+        this.assignAttributes({stroke:darkHex, 'stroke-width':2});
+    }
+    defaultState() {this.colorPolygon(this.defaultStyle);}
+    altState() {this.colorPolygon(this.altStyle);}
+}
+/*export class ShadedArrowBar extends ArrowBar {
+    constructor(options) {
+        const {
+            width, height,
+            darkHex = OUTLINE_HEX, altTopHex = GRADIENT_TOP_HEX, altBottomHex = GRADIENT_BOTTOM_HEX,
+            left = 0, top = 0
+        } = options;
         super({width, height, color:darkHex, left, top});
         const darkenDecimal = .5;
         const defaultTopHex = decimalColor(altTopHex, darkenDecimal);
@@ -350,7 +388,7 @@ export class ShadedArrowBar extends ArrowBar {
     altState() {
         this.gradientArrowBar.colorPolygon(this.altGradient);
     }
-}
+}*/
 
 export class TransitionRect extends Rectangle {
     constructor(options) {
@@ -410,44 +448,34 @@ export class Slider extends SemicircleBar {
         this.progressBar = new ProgressBar({width, height, containerHex, progressHex, minDecimal, maxDecimal:1-minDecimal, top:-1});
         this.barButton = new UIButton(this.progressBar, null, this.onBarDown);
         this.barButton.enable();
-        this.thumb = new Circle({
+        const thumb = new Circle({
             width: thumbDiameter, height: thumbDiameter,
             background: `radial-gradient(circle at center, #c8c8c8, #cccccc, #dddddd, #000000)`,
             top: (height-thumbDiameter)/2 - 1
         });
-        this.thumb.style.boxShadow =  '0px 1px 1px rgba(0, 0, 0, .5)';
-        this.thumb.style.cursor = 'pointer';
-        this.thumb.enable();
+        thumb.style.boxShadow =  '0px 1px 1px rgba(0, 0, 0, .5)';
+        thumb.style.cursor = 'pointer';
+        this.thumbButton = new UIButtonDrag(thumb, null, this.onThumbMove, this.onThumbDown);
+        this.thumbButton.enable();
         this.appendChild(this.progressBar);
-        this.appendChild(this.thumb);
+        this.appendChild(this.thumbButton);
     }
     addListeners() {
         this.barButton.addMouseListeners();
-        this.thumb.addInteractiveListener(UIButton.MOUSE_DOWN, this.onThumbDown);
+        this.thumbButton.addMouseListeners();
     }
     removeListeners() {
         this.barButton.removeMouseListeners();
-        this.thumb.removeInteractiveListener(UIButton.MOUSE_DOWN, this.onThumbDown);
+        this.thumbButton.removeMouseListeners();
     }
     updateBar(decimal) {this.progressBar.setProgress(decimal);}
-    updateThumb(decimal) {this.thumb.style.left = `${this.thumbMax*decimal}px`;}
-    onBarDown = (evt) => {
-        this.updateProgressByDecimal(evt.offsetX/this.barWidth, true);
-    }
-    onThumbDown = (evt) => {
-        document.addEventListener(UIButton.MOUSE_MOVE, this.onThumbMove);
-        document.addEventListener(UIButton.MOUSE_UP, this.onThumbUp);
-        this.dragStartX = evt.clientX;
-        this.dragStartLeft = this.thumb._element.offsetLeft;
-    }
-    onThumbMove = (evt) => {
-        const delta = (evt.clientX - this.dragStartX) / this.scaleValue;
-        const newLeft = clamp(this.dragStartLeft+delta, 0, this.thumbMax);
+    updateThumb(decimal) {this.thumbButton.style.left = `${this.thumbMax*decimal}px`;}
+    onBarDown = (evt) => {this.updateProgressByDecimal(evt.offsetX/this.barWidth, true);}
+    onThumbDown = (evt) => {this.dragStartLeft = this.thumbButton.offsetLeft;}
+    onThumbMove = (deltaX) => {
+        deltaX /= this.scaleValue;
+        const newLeft = clamp(this.dragStartLeft+deltaX, 0, this.thumbMax);
         this.updateProgressByThumb(newLeft, true);
-    }
-    onThumbUp = () => {
-        document.removeEventListener(UIButton.MOUSE_MOVE, this.onThumbMove);
-        document.removeEventListener(UIButton.MOUSE_UP, this.onThumbUp);
     }
     updateProgressByThumb(left, setProgress=false) {
         const decimal = clamp(left/this.thumbMax, 0, 1);

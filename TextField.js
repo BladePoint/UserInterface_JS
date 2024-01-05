@@ -5,6 +5,7 @@ export class TextField extends UIElement {
     static AUTO = 'auto';
     static BREAK_WORD = 'break-word';
     static NORMAL = 'normal';
+    static NO_WRAP = 'nowrap';
     constructor(options) {
         super();
         const {
@@ -18,7 +19,7 @@ export class TextField extends UIElement {
             color = '#000000',
             textShadow = 'none',
             textAlign = 'left', // 'center', 'right', 'justify'
-            whiteSpace = 'nowrap', // 'normal'
+            whiteSpace = TextField.NO_WRAP, // 'normal'
             left = '',
             right = '',
             top = '',

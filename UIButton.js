@@ -1,19 +1,23 @@
-import { UIElement } from './UIElement.js';
+import { UIElement, UIVector } from './UIElement.js';
 import { noop } from '../Utilities_JS/constants.js';
+import { clamp } from '../Utilities_JS/mathUtils.js';
 
 export class UIButton {
-    static MOUSE_ENTER = 'mouseenter';
-    static MOUSE_LEAVE = 'mouseleave';
-    static MOUSE_DOWN = 'mousedown';
+    static POINTER_ENTER = 'pointerenter';
+    static POINTER_LEAVE = 'pointerleave';
+    static POINTER_DOWN = 'pointerdown';
+    static POINTER_UP = 'pointerup';
+    static POINTER_MOVE = 'pointermove';
+    static TOUCH_MOVE = 'touchmove';
+    static TOUCH_END = 'touchend';
     static MOUSE_MOVE = 'mousemove';
     static MOUSE_UP = 'mouseup';
-    static TOUCH_START = 'touchstart';
-    static TOUCH_END = 'touchend';
+    static POINTER = 'pointer';
+    static DEFAULT = 'default';
     constructor(containerElement, pointerElement=null, execFunction=noop) {
         this._containerElement = containerElement;
-        this._pointerElement = pointerElement ? pointerElement : containerElement;
+        this.pointerElement = pointerElement ? pointerElement : containerElement;
         this.execFunction = execFunction;
-        this.onTouchStart = this.onTouchStart.bind(this);
         this.onDown = this.onDown.bind(this);
     }
     get style() {
@@ -24,12 +28,12 @@ export class UIButton {
         UIElement.assignStyles(this, parsedObject);
     }
     enable() {
-        this._pointerElement.style.cursor = 'pointer';
-        this._pointerElement.enable();
+        this.pointerElement.style.cursor = UIButton.POINTER;
+        this.pointerElement.enable();
     }
     disable() {
-        this._pointerElement.style.cursor = 'default';
-        this._pointerElement.disable();
+        this.pointerElement.style.cursor = UIButton.DEFAULT;
+        this.pointerElement.disable();
     }
     appendToParent(parent) {
         if (this._containerElement instanceof UIElement) this._containerElement.appendToParent(parent);
@@ -43,34 +47,69 @@ export class UIButton {
         if (this._containerElement instanceof UIElement) this._containerElement.removeFromParent(parent);
         parent.removeChild(this._containerElement);
     }
-    addMouseListeners() {
-        if (this._pointerElement instanceof UIElement) this.changeListeners('addInteractiveListener');
-        else this.changeListeners('addEventListener');
-    }
-    removeMouseListeners() {
-        if (this._pointerElement instanceof UIElement) this.changeListeners('removeInteractiveListener');
-        else this.changeListeners('removeEventListener');
+    get offsetLeft() {return this._containerElement.offsetLeft;}
+    addMouseListeners() {this.setMouseListeners(true);}
+    removeMouseListeners() {this.setMouseListeners(false);}
+    setMouseListeners(isAdd) {
+        let methodString;
+        if (this.pointerElement instanceof UIElement && !(this.pointerElement instanceof UIVector)) {
+            if (isAdd) methodString = 'addInteractiveListener';
+            else methodString = 'removeInteractiveListener';
+        } else {
+            if (isAdd) methodString = 'addEventListener';
+            else methodString = 'removeEventListener'
+        }
+        this.changeListeners(methodString);
     }
     changeListeners(methodString) {
-        this._pointerElement[methodString](UIButton.MOUSE_DOWN, this.onDown);
-        this._pointerElement[methodString](UIButton.TOUCH_START, this.onTouchStart);
+        const eventTarget = this.getListenerTarget();
+        eventTarget[methodString](UIButton.POINTER_DOWN, this.onDown);
+        return eventTarget;
     }
-    onTouchStart(evt) {
-        if (evt.cancelable) {
-            evt.preventDefault();
-            this.onDown(evt);
-        }
-        else evt.target.style.opacity = 0.1;
-    }
+    getListenerTarget() {return this.pointerElement instanceof UIVector ? this.pointerElement.polygon : this.pointerElement;}
     onDown(evt) {this.onDownLogic(evt);}
     onDownLogic(evt) {this.execFunction(evt);}
+}
+
+export class UIButtonDrag extends UIButton {
+    constructor(containerElement, pointerElement=null, execFunction=noop, onDownFunction=noop) {
+        super(containerElement, pointerElement, execFunction);
+        this.onDownFunction = onDownFunction;
+        this.startX = undefined;
+    }
+    onDownLogic(evt) {
+        document.addEventListener(UIButton.TOUCH_MOVE, this.onMove);
+        document.addEventListener(UIButton.MOUSE_MOVE, this.onMove);
+        document.addEventListener(UIButton.TOUCH_END, this.onUp);
+        document.addEventListener(UIButton.MOUSE_UP, this.onUp);
+        this.pointerElement.style.cursor = 'grabbing';
+        if (evt.touches) this.startX = evt.touches[0].clientX;
+        else this.startX = evt.clientX;
+        this.onDownFunction(evt);
+    }
+    onMove = (evt) => {
+        const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+        const deltaX = (clientX - this.startX);
+        this.execFunction(deltaX);
+    }
+    onUp = (evt) => {
+        document.removeEventListener(UIButton.TOUCH_MOVE, this.onMove);
+        document.removeEventListener(UIButton.MOUSE_MOVE, this.onMove);
+        document.removeEventListener(UIButton.TOUCH_END, this.onUp);
+        document.removeEventListener(UIButton.MOUSE_UP, this.onUp);
+        this.pointerElement.style.cursor = 'grab';
+    }
+    enable() {
+        this.pointerElement.style.cursor = 'grab';
+        this.pointerElement.enable();
+    }
 }
 
 export class UIButtonHover extends UIButton {
     constructor(containerElement, pointerElement=null, execFunction=noop) {
         super(containerElement, pointerElement, execFunction);
-        this._isMouseHover = false;
-        this._isMouseDown = false;
+        this._isHovering = false;
+        this._isDown = false;
         this._isSuspended = false;
         this.onEnter = this.onEnter.bind(this);
         this.onLeave = this.onLeave.bind(this);
@@ -78,39 +117,31 @@ export class UIButtonHover extends UIButton {
         this.addMouseListeners();
     }
     changeListeners(methodString) {
-        super.changeListeners(methodString);
-        this._pointerElement[methodString](UIButton.MOUSE_ENTER, this.onEnter);
-        this._pointerElement[methodString](UIButton.MOUSE_LEAVE, this.onLeave);
-        this._pointerElement[methodString](UIButton.MOUSE_UP, this.onUp);
-        this._pointerElement[methodString](UIButton.TOUCH_END, this.onUp);
+        const eventTarget = super.changeListeners(methodString);
+        eventTarget[methodString](UIButton.POINTER_ENTER, this.onEnter);
+        eventTarget[methodString](UIButton.POINTER_LEAVE, this.onLeave);
+        eventTarget[methodString](UIButton.POINTER_UP, this.onUp);
     }
     onEnter(evt) {
-        this._isMouseHover = true;
+        this._isHovering = true;
         if (!this._isSuspended) this.onEnterLogic();
     }
     onEnterLogic() {}
     onLeave(evt) {
-        this._isMouseHover = false;
-        this._isMouseDown = false;
+        this._isHovering = false;
+        this._isDown = false;
         if (!this._isSuspended) this.onLeaveLogic(evt);
     }
     onLeaveLogic(evt) {}
     onDown(evt) {
-        this._isMouseDown = true;
+        this._isDown = true;
         if (!this._isSuspended) this.onDownLogic(evt);
     }
     onDownLogic(evt) {}
     onUp(evt) {
-        if (this._isMouseDown && !this._isSuspended) {
-            if (evt.changedTouches) {
-                const clientX = evt.changedTouches[0].clientX;
-                const clientY = evt.changedTouches[0].clientY;
-                const buttonRect = evt.target.getBoundingClientRect();
-                if (clientX >= buttonRect.left && clientX <= buttonRect.right && clientY >= buttonRect.top && clientY <= buttonRect.bottom) this.onUpLogic();
-                else this.onCancelLogic(evt);
-            } else this.onUpLogic(evt);
-        } else this.onCancelLogic(evt);
-        this._isMouseDown = false;
+        if (this._isDown && !this._isSuspended) this.onUpLogic(evt);
+        else if (!this._isDown && !this._isSuspended) this.onCancelLogic(evt);
+        this._isDown = false;
     }
     onUpLogic(evt) {this.execFunction(this);}
     onCancelLogic(evt) {}
@@ -136,5 +167,5 @@ export class Button3State extends Button2State {
     }
     onEnterLogic(evt) {this.hoverState();}
     onUpLogic(evt) {this.hoverState(); super.onUpLogic();}
-    testState() {if (this._isMouseHover === true) this.onEnterLogic();}
+    testState() {if (this._isHovering === true) this.onEnterLogic();}
 }

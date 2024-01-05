@@ -4,6 +4,7 @@ export class UIElement extends EventTarget {
     static DIV = 'div';
     static A = 'a';
     static IMG = 'img';
+    static SPAN = 'span';
     static SVGNS = "http://www.w3.org/2000/svg";
     static SVG = 'svg';
     static POLYGON = 'polygon';
@@ -13,7 +14,7 @@ export class UIElement extends EventTarget {
     static assignAttributes(element, attributeObject) {for (const property in attributeObject) {element.setAttribute(property, attributeObject[property]);}}
     static assignDefaultStyles(element, type) {
         const styleObject = {pointerEvents:'none', position:'absolute'};
-        if (type === UIElement.DIV || type === UIElement.A) {
+        if (type === UIElement.DIV || type === UIElement.A || type === UIElement.SPAN) {
             styleObject.display = 'inline-block';
             styleObject.margin = 0;
             styleObject.padding = 0;
@@ -24,6 +25,7 @@ export class UIElement extends EventTarget {
         if (elementType === UIElement.DIV) return document.createElement(elementType); //HTMLDivElement
         else if (elementType === UIElement.A) return document.createElement(elementType); //HTMLAnchorElement
         else if (elementType === UIElement.IMG) return document.createElement(elementType); //HTMLImageElement
+        else if (elementType === UIElement.SPAN) return document.createElement(elementType); //HTMLSpanElement
         else if (elementType === UIElement.SVG) return document.createElementNS(UIElement.SVGNS, elementType); //SVGElement
         else if (elementType === UIElement.POLYGON) return document.createElementNS(UIElement.SVGNS, elementType); //SVGElement
         else if (elementType === UIElement.LINEAR_GRADIENT) return document.createElementNS(UIElement.SVGNS, elementType); //SVGElement
@@ -83,6 +85,7 @@ export class UIElement extends EventTarget {
     removeFromParent(parent) {
         parent.removeChild(this._element);
     }
+    get offsetLeft() {return this._element.offsetLeft;}
     dispatchEventWith(eventName, eventData = {}) {
         const event = new CustomEvent(eventName, { detail: eventData });
         this.dispatchEvent(event);
@@ -126,11 +129,7 @@ export class UIVector extends UIElement {
             this.appendChild(color);
             fillValue = `url(#${color.id})`;
         } else if (typeof color === 'string') fillValue = color;
-        else {
-            console.log(color);
-            console.log(color instanceof SVGElement);
-            throw new Error(`${this.constructor.name}.colorPolygon: Invalid color.`);
-        }
+        else throw new Error(`${this.constructor.name}.colorPolygon: Invalid color.`);
         this.polygon.setAttribute('fill', fillValue);
     }
     colorAndPosition(options) {

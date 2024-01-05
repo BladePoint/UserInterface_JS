@@ -70,24 +70,23 @@ export function getGradient(id, colors, direction) {
 export class Rectangle extends UIElement {
     constructor(options) {
         super();
-        const {width, height, background, borderRadius=0, boxSizing=CONTENT_BOX, border=NONE, left=0, top=0} = options;
-        this.assignStyles({width, height, background, borderRadius, boxSizing, border, left, top});
+        const {width, height, background, borderRadius=0, boxSizing=CONTENT_BOX, border=NONE, boxShadow=NONE, left=0, top=0} = options;
+        this.assignStyles({width, height, background, borderRadius, boxSizing, border, boxShadow, left, top});
     }
 }
 
-export class Circle extends UIElement {
+export class Circle extends Rectangle {
     constructor(options) {
-        super();
-        const {width, height, background, boxSizing=CONTENT_BOX, border=NONE, left=0, top=0} = options;
-        this.assignStyles({width, height, borderRadius:'50%', background, boxSizing, border, left, top});
+        const {width, height, background, boxSizing=CONTENT_BOX, border=NONE, boxShadow=NONE, left=0, top=0} = options;
+        super({width, height, background, borderRadius:'50%', boxSizing, border, boxShadow, left, top});
     }
 }
 
 export class SemicircleBar extends UIElement {
     constructor(options) {
         super();
-        const {width, height, background, boxSizing=CONTENT_BOX, border=NONE, left=0, top=0} = options;
-        this.assignStyles({width, height, borderRadius:height/2, background, boxSizing, border, left, top});
+        const {width, height, background, boxSizing=CONTENT_BOX, border=NONE, boxShadow = '', left=0, top=0} = options;
+        this.assignStyles({width, height, borderRadius:height/2, background, boxSizing, border, boxShadow, left, top});
     }
 }
 
