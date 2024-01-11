@@ -237,9 +237,11 @@ export class ProgressBar extends SemicircleBar {
 }
 export class DoubleProgressBar extends ProgressBar {
     constructor(options) {
-        const {width, height, boxSizing=CONTENT_BOX, border=NONE, containerHex, rearProgressHex, frontProgressHex, boxShadow=NONE, top=0, left=0} = options;
-        const superOptions = {width, height, containerHex, progressHex:rearProgressHex, boxSizing, border, boxShadow, top, left};
-        super(superOptions);
+        const {
+            width, height, boxSizing=CONTENT_BOX, border=NONE, boxShadow=NONE,
+            containerHex, rearProgressHex, frontProgressHex,
+            top=0, left=0} = options;
+        super({width, height, containerHex, progressHex:rearProgressHex, boxSizing, border, boxShadow, top, left});
         this.containerHex = containerHex;
         this.rearProgressHex = rearProgressHex;
         this.frontProgressHex = frontProgressHex;
@@ -264,7 +266,30 @@ export class DoubleProgressBar extends ProgressBar {
     }
 }
 
-export class DoubleProgressSeekBar extends DoubleProgressBar {
+export class DoubleProgressSeekBar extends UIButton {
+    constructor(options) {
+        const {
+            width, height, rimHex='#cccccc', containerHex='#151c23', rearProgressHex=GLASS_LIGHT_HEX, frontProgressHex='#666666', seekCallback=noop,
+            boxSizing = BORDER_BOX, border = '1px solid #333333',
+            top = 0, left = 0
+        } = options;
+        const doubleProgressBar = new DoubleProgressBar({
+            width, height, containerHex, rearProgressHex, frontProgressHex, boxSizing, border, boxShadow:`0 1px 0 ${rimHex}`,
+            left, top
+        });
+        super(doubleProgressBar, null, null);
+        this.doubleProgressBar = doubleProgressBar;
+        this.execFunction = this.onBar;
+        this.width = width;
+        this.seekCallback = seekCallback;
+        this.addMouseListeners();
+    }
+    onBar(evt) {this.seekCallback(clamp(evt.offsetX/this.width,0,1));}
+    setProgressRear(decimal) {this.doubleProgressBar.setProgressRear(decimal);}
+    setProgressFront(decimal) {this.doubleProgressBar.setProgressFront(decimal);}
+}
+
+/*export class DoubleProgressSeekBar extends DoubleProgressBar {
     constructor(options) {
         const {
             width, height, rimHex = '#cccccc',
@@ -280,7 +305,7 @@ export class DoubleProgressSeekBar extends DoubleProgressBar {
             left, top
         });
     }
-}
+}*/
 
 export class TriangleShadow extends UIVector {
     constructor(options) {
@@ -347,15 +372,17 @@ export class ShadedArrowBar extends ArrowBar {
         const defaultBottomHex = decimalColor(altBottomHex, darkenDecimal);
         const defaultStyle = getGradient('defaultGradient', [defaultTopHex, defaultBottomHex], TOP_TO_BOTTOM);
         super({
-            width: width-2,
-            height: height-2,
+            width: width-4,
+            height: height,
             color: defaultStyle,
             left: left + 1,
             top: top + 1
         });
         this.defaultStyle = defaultStyle;
         this.altStyle = getGradient('altGradient', [altTopHex, altBottomHex], TOP_TO_BOTTOM);
-        this.assignAttributes({stroke:darkHex, 'stroke-width':2});
+        this.assignAttributes({'stroke':darkHex, 'stroke-width':2, 'width':width});
+        this.polygon.setAttribute('transform', 'translate(1, 0)');
+
     }
     defaultState() {this.colorPolygon(this.defaultStyle);}
     altState() {this.colorPolygon(this.altStyle);}
